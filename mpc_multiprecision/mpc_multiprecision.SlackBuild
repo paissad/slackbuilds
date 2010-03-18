@@ -1,0 +1,105 @@
+#!/bin/bash
+
+#Depends:
+#Suggests:
+
+PRGNAM=${PRGNAM:-"mpc_multiprecision"}
+SRCNAM=${SRCNAM:-"mpc"}
+VERSION=${VERSION:-"0.8.1"}
+ARCH=${ARCH:-"$(uname -m)"}
+BUILD=${BUILD:-"1"}
+CWD=${CWD:-`pwd`}
+TMP=${TMP:-/tmp/SBp}
+PKG=${PKG:-$TMP/package-$PRGNAM}
+OUTPUT=${OUTPUT:-/tmp}
+EXT=${EXT:-tar.gz}
+URL=${URL:-"http://www.multiprecision.org/mpc/download/$SRCNAM-$VERSION.$EXT"}
+TAG=${TAG:-_paissad}
+NUMJOBS=${NUMJOBS:-4}
+DOCS="AUTHORS COPYING.LIB ChangeLog README TODO NEWS"
+
+set -e
+
+if [ ! -r $SRCNAM-$VERSION.$EXT ]; then
+  echo -e "\E[0;32m+-------------------------------+\E[0;0m"
+  echo -e "\E[0;32m| Start downloading $SRCNAM-$VERSION |\E[0;0m"
+  echo -e "\E[0;32m+-------------------------------+\E[0;0m"
+  wget "$URL"
+  echo -e "\E[0;32m| Download Finished successfully |\E[0;0m"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP || exit 1
+rm -rf $PRGNAM-$VERSION
+tar xvf $CWD/$SRCNAM-$VERSION.$EXT || exit 1
+
+echo -e "\E[0;32m+-------------------------------+\E[0;0m"
+echo -e "\E[0;32m| Start SlackBuild $PRGNAM-$VERSION |\E[0;0m"
+echo -e "\E[0;32m+-------------------------------+\E[0;0m"
+
+mv -v $SRCNAM-$VERSION $PRGNAM-$VERSION
+cd $PRGNAM-$VERSION
+
+if [ "$ARCH" = "i486" ]; then
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "i686" ]; then
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+  NUMJOBS=2
+fi
+
+prefix=${prefix:-"/usr"}
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
+./configure --prefix=$prefix
+
+make -j$NUMJOBS 
+make DESTDIR=$PKG install
+
+# Installation of slack-desc
+mkdir -p $PKG/install 
+cat << EOF > $PKG/install/slack-desc
+# HOW TO EDIT THIS FILE:            
+# The "handy ruler" below makes it easier to edit a package description.  Line
+# up the first '|' above the ':' following the base package name, and the '|' 
+# on the right side marks the last column you can put a character in.  You
+# must
+# make exactly 11 lines for the formatting to be correct.  It's also           
+# customary to leave one space after the ':'.                                  
+
+         |-----handy-ruler----------------------------------------------------|
+mpc_multiprecision:  MPC named MULTIPRECISION 
+mpc_multiprecision:
+mpc_multiprecision: Mpc is a C library for the arithmetic of complex numbers 
+mpc_multiprecision: with arbitrarily high precision and correct rounding of the
+mpc_multiprecision: result. It is built upon and follows the same principles 
+mpc_multiprecision: as Mpfr.
+mpc_multiprecision:
+mpc_multiprecision:
+mpc_multiprecision: Homepage: http://www.multiprecision.org/
+mpc_multiprecision:
+mpc_multiprecision:
+EOF
+
+# Install a doinst.sh, if it exists
+if [ -r $CWD/doinst.sh ]; then
+   cat $CWD/doinst.sh > $PKG/install/doinst.sh
+fi
+
+# Install the documentation
+mkdir -p $PKG/$prefix/doc/$PRGNAM-$VERSION
+for i in $DOCS;
+do 
+  if [ ! -r $i ]; then
+    install -m 644 $i $PKG/$prefix/doc/$PRGNAM-$VERSION
+  fi
+done
+
+cd $PKG 
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.tgz

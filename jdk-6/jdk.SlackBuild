@@ -1,0 +1,203 @@
+#!/bin/bash
+
+# Copyright 2010, Papa Issa DIAKHATE (paissad), Montpellier, FRANCE. 
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Requirements:
+# Suggests:
+
+PRGNAM=${PRGNAM:-jdk}
+SRCNAM=${SRCNAM:-$PRGNAM}
+VERSION=${VERSION:-6u18}
+DVER=${DVER:-1.6.0_18}
+ARCH=${ARCH:-$(uname -m)}    # only determines the lib path locations
+JAVA_ARCH=${JAVA_ARCH:-x64}  # or i586 if you want the 32bit version
+BUILD=${BUILD:-1}           
+
+if [ "$JAVA_ARCH" = "x64" ]; then
+  LIB_ARCH=amd64
+else
+  LIB_ARCH=i386
+fi
+
+if [ "$ARCH" = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+else
+  LIBDIRSUFFIX=""
+fi
+
+CWD=${CWD:-`pwd`}
+TMP=${TMP:-/tmp/SBp}
+PKG=${PKG:-$TMP/package-$PRGNAM}
+OUTPUT=${OUTPUT:-/tmp}
+EXT=${EXT:-bin}
+URL=${URL:-}
+TAG=${TAG:-_paissad}
+PKGTYPE=${PKGTYPE:-tgz}
+PREFIX=${PREFIX:-/usr}
+
+set -e
+
+txtred=$'\e[0;31m' # Red
+txtgrn=$'\e[0;32m' # Green
+txtylw=$'\e[0;33m' # Yellow
+txtblu=$'\e[0;34m' # Blue
+txtpur=$'\e[0;35m' # Purple
+txtcyn=$'\e[0;36m' # Cyan
+txtrst=$'\e[0m'    # Text Reset
+
+# --- some fancy fonctions ---
+frame()
+{
+    WIDTH=78
+    STARS="++----------------------------------------------------------------------------+"
+    SPACES="                                                                               "
+    printf "%s\n" "${STARS:1:$WIDTH}"
+    while read line ; do
+        HALF="${SPACES:1:$((($WIDTH-${#line})/2))}"
+        LINE="$HALF$line$SPACES"
+        printf "+%s+\n" "${LINE:1:$(($WIDTH-2))}"
+    done
+    printf "%s\n" "${STARS:1:$WIDTH}"
+}
+introduce(){
+    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst \c "; sleep 2;
+}
+conclude(){
+    echo -e "${txtgrn}\n# $1 \n${txtrst}"; sleep 2;
+}
+shellout(){
+    echo -e "${txtred}Error:${txtrst} $1 ${txtcyn}(exit status -> $?)${txtrst}"; exit 1;
+}
+warnout(){
+    echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
+}
+#----- end of fancy fonctions -----------
+
+#if [ ! -r $PRGNAM-$VERSION-linux-$JAVA_ARCH.$EXT ]; then
+    #introduce "Start downloading $SRCNAM-$VERSION" 
+    #wget "$URL" || shellout "Downloading $SRCNAM-$VERSION"
+    #conclude "Download of $SRCNAM-$VERSION finished successfully !"
+#fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+
+## Let's remove the slash (if exists) $PREFIX
+PREFIX=$(echo $PREFIX | sed -e "s,^/,," -e "s,/$,,")
+
+introduce "Start SlackBuild $PRGNAM-$VERSION"
+
+cd $PKG
+mkdir -p $PREFIX/lib${LIBDIRSUFFIX}
+cd $PREFIX/lib${LIBDIRSUFFIX}
+yes yes | sh $CWD/$PRGNAM-${VERSION}-linux-${JAVA_ARCH}.$EXT \
+|| shellout "Running $PRGNAM-$VERSION-linux-$JAVA_ARCH.$EXT"
+
+mkdir -p $PKG/etc/profile.d
+for file in $(ls $CWD/profile.d/*) ; do
+  cat $file | sed -e "s#\(JAVA_HOME=\).*#\1/${PREFIX}/lib${LIBDIRSUFFIX}/java#" \
+    > $PKG/etc/profile.d/$(basename $file)
+done
+
+chown -R root:root .
+find . \
+\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+-exec chmod 755 {} \; -o \
+\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
+-perm 400 \) -exec chmod 644 {} \;
+
+chmod 755 $PKG/etc/profile.d/*
+( cd $PKG/$PREFIX/lib${LIBDIRSUFFIX}
+  mv ${PRGNAM}${DVER} java || exit 1
+  ln -sf java ${PRGNAM}${DVER}
+) || shellout "Changing perms of $PKG/etc/profile.d/*"
+
+mkdir -p $PKG/$PREFIX/lib${LIBDIRSUFFIX}/mozilla/plugins
+( cd $PKG/$PREFIX/lib${LIBDIRSUFFIX}/mozilla/plugins
+  ln -sf /$PREFIX/lib${LIBDIRSUFFIX}/java/jre/lib/${LIB_ARCH}/libnpjp2.so libnpjp2.so
+)
+
+( cd $PKG/$PREFIX/lib${LIBDIRSUFFIX}
+  ln -sf ./java/jre/lib/${LIB_ARCH}/server/libjvm.so .
+)
+
+# Installation of slack-desc
+mkdir -p $PKG/install 
+cat $CWD/slack-desc > $PKG/install/slack-desc
+cat << EOF > $PKG/install/doinst.sh
+
+# Clean up a potential upgrade mess caused by changing the
+# installation directory to /$PREFIX/lib${LIBDIRSUFFIX}/java/:
+if [ -L $PREFIX/lib${LIBDIRSUFFIX}/java ]; then
+  rm -rf $PREFIX/lib${LIBDIRSUFFIX}/java
+  mkdir -p $PREFIX/lib${LIBDIRSUFFIX}/java/man
+  mkdir -p $PREFIX/lib${LIBDIRSUFFIX}/java/jre/lib/${LIB_ARCH}/server
+  mkdir -p $PREFIX/lib${LIBDIRSUFFIX}/java/jre/lib/${LIB_ARCH}/client
+  mkdir -p $PREFIX/lib${LIBDIRSUFFIX}/java/jre/javaws
+  mkdir -p $PREFIX/lib${LIBDIRSUFFIX}/java/jre/bin
+  mkdir -p $PREFIX/lib${LIBDIRSUFFIX}/java/bin
+  mkdir -p $PREFIX/lib${LIBDIRSUFFIX}/mozilla/plugins
+fi
+if [ -L ControlPanel ]; then
+  rm -f ControlPanel
+fi
+if [ -L ja ]; then
+  rm -f ja
+fi
+if [ -L javaws ]; then
+  rm -f javaws
+fi
+if [ -L libjsig.so ]; then
+  rm -f libjsig.so
+fi
+# End cleanup.
+EOF
+
+# Install a doinst.sh, if it exists
+if [ -r $CWD/doinst.sh ]; then
+   cat $CWD/doinst.sh > $PKG/install/doinst.sh
+fi
+
+# Install the desktop/mime files:
+mkdir -p $PKG/$PREFIX/share/{applications,icons,mime}
+cp -a $PKG/$PREFIX/lib${LIBDIRSUFFIX}/java/jre/lib/desktop/applications/* \
+  $PKG/$PREFIX/share/applications/
+cp -a $PKG/$PREFIX/lib${LIBDIRSUFFIX}/java/jre/lib/desktop/icons/hicolor \
+  $PKG/$PREFIX/share/icons/
+cp -a $PKG/$PREFIX/lib${LIBDIRSUFFIX}/java/jre/lib/desktop/mime/packages \
+  $PKG/$PREFIX/share/mime/
+
+mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+chown -R root:root $PKG/$PREFIX/doc
+find $PKG/$PREFIX/doc -type f -exec chmod -c 0644 {} \;
+
+mkdir -p $PKG/install
+test -r $CWD/slack-desc && \
+cat $CWD/slack-desc > $PKG/install/slack-desc
+# -- finished install docs --
+
+cd $PKG 
+/sbin/makepkg -l y -c n \
+$OUTPUT/jdk-$(echo $VERSION | tr - _)-$ARCH-$BUILD$TAG.$PKGTYPE \
+|| shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"
+
+conclude "Done ..."

@@ -1,0 +1,256 @@
+#!/bin/bash
+
+# Copyright 2010, Papa Issa DIAKHATE (paissad), Montpellier, FRANCE. 
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Requirements: jdk-6, ant
+# Suggests:
+
+PACKAGER_ID=${PACKAGER_ID:-$USER}
+PACKAGER=${PACKAGER:-$USER@$HOSTNAME}
+DATE=$(LC_ALL=C date +%d-%b-%Y)
+
+PRGNAM=${PRGNAM:-pms-linux}
+SRCNAM=${SRCNAM:-$PRGNAM}
+SVN_URL=${SVN_URL:-http://ps3mediaserver.googlecode.com/svn/trunk/ps3mediaserver}
+SVN_VERSION=${SVN_VERSION:-$(wget -q -O- $SVN_URL/build.xml \
+| sed -n "s/^[[:space:]]\{1,\}<property[[:space:]]\{1,\}name=\"version\".*value=\"\([0-9.]\{1,\}\)\".*\/>$/\1/p")}
+SVN_REVISION=${SVN_REVISION:-$(svn log -q -r HEAD $SVN_URL \
+| awk '/^r[0-9][0-9]*/ { print $1 }')}
+VERSION=${SVN_VERSION}${SVN_REVISION}
+ARCH=${ARCH:-$(uname -m)}
+BUILD=${BUILD:-1}
+CWD=${CWD:-`pwd`}
+TMP=${TMP:-/tmp/SBp}
+PKG=${PKG:-$TMP/package-$PRGNAM}
+OUTPUT=${OUTPUT:-/tmp}
+EXT=${EXT:-tar.gz}
+TAG=${TAG:-_paissad}
+PKGTYPE=${PKGTYPE:-tgz}
+PREFIX=${PREFIX:-"/usr"}
+NUMJOBS=${NUMJOBS:-}
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE \
+CHANGELOG ChangeLog HACKING INSTALL MAINTAINERS NEWS ReadMe README \
+THANKS TODO RELEASE UPGRADING FAQ HELP"}
+
+set -e
+
+txtred=$'\e[0;31m' # Red
+txtgrn=$'\e[0;32m' # Green
+txtylw=$'\e[0;33m' # Yellow
+txtblu=$'\e[0;34m' # Blue
+txtpur=$'\e[0;35m' # Purple
+txtcyn=$'\e[0;36m' # Cyan
+txtrst=$'\e[0m'    # Text Reset
+
+frame()
+{
+    WIDTH=78
+    STARS="++----------------------------------------------------------------------------+"
+    SPACES="                                                                               "
+    printf "%s\n" "${STARS:1:$WIDTH}"
+    while read line ; do
+        HALF="${SPACES:1:$((($WIDTH-${#line})/2))}"
+        LINE="$HALF$line$SPACES"
+        printf "+%s+\n" "${LINE:1:$(($WIDTH-2))}"
+    done
+    printf "%s\n" "${STARS:1:$WIDTH}"
+}
+introduce(){
+    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst \c "; sleep 2;
+}
+conclude(){
+    echo -e "${txtgrn}\n# $1 \n${txtrst}"; sleep 2;
+}
+shellout(){
+    echo -e "${txtred}Error:${txtrst} $1 ${txtcyn}(exit status -> $?)${txtrst}"; exit 1;
+}
+warnout(){
+    echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
+}
+
+# Downloading the source
+if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
+    introduce "Start downloading ${SRCNAM}-${VERSION}" 
+    svn export --force -r $SVN_REVISION $SVN_URL $PRGNAM-$VERSION \
+	|| shellout "Downloading ${SRCNAM}-${VERSION}"
+    conclude "Download of ${SRCNAM}-${VERSION} finished successfully !"
+	
+	introduce "Compressing the source ..."
+	tar cv $PRGNAM-$VERSION | gzip -f9 > $PRGNAM-$VERSION.$EXT \
+	|| shellout "Compression of the source failed."
+	conclude "Compression of the source finished successfully !"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP || exit 1
+rm -rf $PRGNAM-$VERSION
+introduce "Extracting source" 
+tar xvf $CWD/${SRCNAM}-${VERSION}.$EXT \
+|| shellout "Extracting ${SRCNAM}-${VERSION}.$EXT"
+conclude "Extracting source finished successfully !"
+
+introduce "Start SlackBuild $PRGNAM-$VERSION"
+test -d $PRGNAM-$VERSION || \
+mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
+cd $TMP/$PRGNAM-$VERSION
+
+chown -R root:root .
+find . \
+\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+-exec chmod 755 {} \; -o \
+\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
+-perm 400 \) -exec chmod 644 {} \;
+
+# Let's backup PMS.conf too before modifying it !
+cp -a PMS.conf PMS.conf.example
+mv  PMS.sh pms-linux
+
+# Let's change the original build.xml file
+# 1) We change the mode to 644
+# 2) We add new dirs of files to linux PACKAGE to be created during the build
+# 3) We include the new pms-linux (shell script) instead of the original one ( PMS.sh )
+mode=644
+add_to_build=dist-archive/**,PMS.conf,
+sed -i \
+-e "s/\(^[[:space:]]*<tarfileset.* mode=\"\).*\(\" prefix=.*\)/\1$mode\2/" \
+-e "s@\(^[[:space:]]*<tarfileset.* includes=\"\)\(.*\)@\1$add_to_build\2@" \
+-e "s@PMS.sh@pms-linux@" \
+build.xml || shellout "Changing build.xml file failed."
+
+# We change the DIRNAME variable of the default PMS.sh file
+sed -i -e \
+"s@\(^DIRNAME=\).*@\1/usr/share/$PRGNAM@" \
+pms-linux || exit 1
+
+# Let's change an option in the PMS.conf file we will use for the system
+sed -i -e \
+"s/\(^minimized *= *\).*/\1true/" \
+PMS.conf || exit 1
+
+# Let's patch the TempFolder.java & PMS.java files
+cd $TMP/$PRGNAM-$VERSION/net/pms/configuration
+patch < $CWD/patches/TempFolder.java.diff \
+|| shellout "Patching TempFolder.java failed."
+
+cd $TMP/$PRGNAM-$VERSION/net/pms
+patch < $CWD/patches/PMS.java.diff \
+|| shellout "Patching PMS.java failed"
+## all patches done
+
+cd $TMP/$PRGNAM-$VERSION
+ant || shellout "Running of ant failed."
+( cd $TMP/$PRGNAM-$VERSION/dist; tar xf *tgz; )
+
+mkdir -p $PKG/usr/bin
+mkdir -p $PKG/etc/{rc.d,logrotate.d}
+mkdir -p $PKG/usr/{man/man1,pixmaps,applications,$PRGNAM}
+mkdir -p $PKG/var/log/pms-linux
+chmod -cR 1777 $PKG/var/log/pms-linux || exit 1
+
+( cd $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-$SVN_VERSION; 
+cp -a renderers/ \
+	  plugins/ \
+	  linux/ \
+	  dist-archive/ \
+	  pms.jar \
+	  $PKG/usr/share/$PRGNAM \
+	  || shellout "Copying files to /usr/share/$PRGNAM"
+cat $TMP/$PRGNAM-$VERSION/PMS.conf > $PKG/etc/PMS.conf.new || exit 1
+cat $TMP/$PRGNAM-$VERSION/WEB.conf > $PKG/etc/WEB.conf.new || exit 1
+chmod 0755 $PKG/usr/share/$PRGNAM/linux/tsMuxeR || exit 1
+) 
+
+install -m 0755 -D $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-$SVN_VERSION/pms-linux \
+$PKG/usr/bin || exit 1
+install -m 0755 $CWD/rc.pms-linux $PKG/etc/rc.d/rc.pms-linux.new || exit 1
+install -m 0644 $CWD/pms-linux.logrotate $PKG/etc/logrotate.d/pms-linux.new || exit 1
+install -m 0644 -D $CWD/pms-linux.xpm $PKG/usr/share/pixmaps  || exit 1
+install -m 0644 -D $CWD/pms-linux.desktop $PKG/usr/share/applications  || exit 1
+## Install the manpage
+install -m 0644 -D $CWD/pms-linux.1 $PKG/usr/man/man1/ || exit 1
+gzip -9 $PKG/usr/man/man1/pms-linux.1  || exit 1
+
+# Installation of slack-desc
+mkdir -p $PKG/install 
+( test -r $CWD/slack-desc && \
+cat $CWD/slack-desc > $PKG/install/slack-desc ) || \
+cat << EODESC > $PKG/install/slack-desc
+# HOW TO EDIT THIS FILE:            
+# The "handy ruler" below makes it easier to edit a package description.  Line
+# up the first '|' above the ':' following the base package name, and the '|' 
+# on the right side marks the last column you can put a character in.  You
+# must
+# make exactly 11 lines for the formatting to be correct.  It's also           
+# customary to leave one space after the ':'.                                  
+
+         |-----handy-ruler----------------------------------------------------|
+pms-linux:  
+pms-linux: PS3 Media Server is a DLNA compliant Upnp Media Server for the PS3,
+pms-linux: written in Java, with the purpose of streaming or transcoding any 
+pms-linux: kind of media files, with minimum configuration.
+pms-linux: It's backed up with the powerful Mplayer/FFmpeg packages.
+pms-linux:
+pms-linux:
+pms-linux: Homepage: http://ps3mediaserver.blogspot.com
+pms-linux:           http://ps3mediaserver.org 
+pms-linux: 
+pms-linux: Packager: _PACKAGER on _BUILD_DATE
+EODESC
+
+# Install a doinst.sh, if it exists
+if [ -r $CWD/doinst.sh ]; then
+   cat $CWD/doinst.sh > $PKG/install/doinst.sh
+fi
+
+# Install the documentation
+cd $TMP/$PRGNAM-$VERSION
+mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$VERSION/examples
+install -m 0644 -D $TMP/$PRGNAM-$VERSION/{PMS.conf.example,WEB.conf} \
+$PKG/$PREFIX/doc/$PRGNAM-$VERSION/examples
+for i in $DOCS ;
+do 
+  if [ -r $i ]; then
+    install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+  fi
+done
+
+mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+chown -R root:root $PKG/usr/doc/$PRGNAM-$VERSION
+find $PKG/$PREFIX/doc -type f -exec chmod 0644 {} \;
+
+mkdir -p $PKG/install
+test -r $CWD/slack-desc && \
+cat $CWD/slack-desc > $PKG/install/slack-desc
+# -- finished install docs --
+
+set +e
+# We change the default values in the slack-desc 
+sed -i "s|_PACKAGER|${PACKAGER}|g; s|_BUILD_DATE|${DATE}|g" \
+${PKG}/install/slack-desc
+set -e
+
+cd $PKG 
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
+|| shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"
+
+conclude "Done ..."

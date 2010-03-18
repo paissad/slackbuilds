@@ -1,0 +1,167 @@
+#!/bin/bash
+
+# Copyright 2010, Papa Issa DIAKHATE (paissad), Montpellier, FRANCE. 
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Requirements: python, setuptools, genshi, (mysql|sqlite|postgresql),
+# (mod_python|mod_wsgi), web server ... 
+# compile_catalog -f need cldr data , read the following link
+# http://babel.edgewall.org/wiki/SubversionCheckout
+# Suggests: subversion, 
+# I build trac from the svn repository !
+
+PRGNAM=${PRGNAM:-trac}
+SRCNAM=${SRCNAM:-$PRGNAM}
+ARCH=${ARCH:-$(uname -m)}
+BUILD=${BUILD:-1}
+CWD=${CWD:-`pwd`}
+TMP=${TMP:-/tmp/SBp}
+PKG=${PKG:-$TMP/package-$PRGNAM}
+OUTPUT=${OUTPUT:-/tmp}
+URL=${URL:-http://svn.edgewall.org/repos/trac/trunk}
+REVISION=${REVISION:-$(svn log -q -r HEAD $URL \
+| awk '/^r[0-9][0-9]*/ { print $1 }' | sed -n "s/^r//p" )}
+VERSION=${VERSION:-0.12r$REVISION}
+TAG=${TAG:-_paissad}
+PKGTYPE=${PKGTYPE:-tgz}
+PREFIX=${PREFIX:-"/usr"}
+DOCS=${DOCS:-"ABOUT-NLS AUTHORS COPYING ChangeLog HACKING INSTALL MAINTAINERS NEWS README THANKS TODO RELEASE"}
+
+set -e
+
+txtred=$'\e[0;31m' # Red
+txtgrn=$'\e[0;32m' # Green
+txtylw=$'\e[0;33m' # Yellow
+txtblu=$'\e[0;34m' # Blue
+txtpur=$'\e[0;35m' # Purple
+txtcyn=$'\e[0;36m' # Cyan
+txtrst=$'\e[0m'    # Text Reset
+
+frame()
+{
+    WIDTH=78
+    STARS="++----------------------------------------------------------------------------+"
+    SPACES="                                                                               "
+    printf "%s\n" "${STARS:1:$WIDTH}"
+    while read line ; do
+        HALF="${SPACES:1:$((($WIDTH-${#line})/2))}"
+        LINE="$HALF$line$SPACES"
+        printf "+%s+\n" "${LINE:1:$(($WIDTH-2))}"
+    done
+    printf "%s\n" "${STARS:1:$WIDTH}"
+}
+introduce(){
+    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst \c "; sleep 2;
+}
+conclude(){
+    echo -e "${txtgrn}\n# $1 \n${txtrst}"; sleep 2;
+}
+shellout(){
+    echo -e "${txtred}Error:${txtrst} $1 ${txtcyn}(exit status -> $?)${txtrst}"; exit 1;
+}
+warnout(){
+    echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
+}
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP || exit 1
+rm -rf $PRGNAM-$VERSION
+
+introduce "Start downloading $SRCNAM-$VERSION" 
+svn export $URL $PRGNAM-$VERSION -r $REVISION \
+|| shellout "Downloading $SRCNAM-$VERSION"
+conclude "Download of $SRCNAM-$VERSION finished successfully !"
+
+introduce "Start SlackBuild $PRGNAM-$VERSION"
+cd $PRGNAM-$VERSION
+# Let's compile locales first 
+python setup.py update_catalog
+python setup.py compile_catalog -f 
+# Let's install
+python setup.py install --prefix=$PREFIX --root=$PKG 
+
+chown -R root:root .
+find . \
+\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+-exec chmod 755 {} \; -o \
+\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
+-perm 400 \) -exec chmod 644 {} \;
+
+# Installation of slack-desc
+mkdir -p $PKG/install 
+( test -r $CWD/slack-desc && \
+cat $CWD/slack-desc $PRGNAM > $PKG/install/slack-desc ) || \
+cat << EODESC > $PKG/install/slack-desc
+# HOW TO EDIT THIS FILE:            
+# The "handy ruler" below makes it easier to edit a package description.  Line
+# up the first '|' above the ':' following the base package name, and the '|' 
+# on the right side marks the last column you can put a character in.  You
+# must
+# make exactly 11 lines for the formatting to be correct.  It's also           
+# customary to leave one space after the ':'.                                  
+
+         |-----handy-ruler----------------------------------------------------|
+trac:                  Trac 
+trac: Trac is an enhanced wiki and issue tracking system for software 
+trac: development projects.
+trac: It provides an interface to  Subversion (or other version control
+trac: systems), an integrated Wiki and convenient reporting facilities.
+trac:
+trac:
+trac:
+trac: 
+trac: Homepage: http://trac.edgewall.org/ 
+trac:
+EODESC
+
+# Install a doinst.sh, if it exists
+if [ -r $CWD/doinst.sh ]; then
+   cat $CWD/doinst.sh > $PKG/install/doinst.sh
+fi
+
+# Install the documentation
+cd $TMP/$SRCNAM-$VERSION
+mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+for i in $DOCS ;
+do 
+  if [ -r $i ]; then
+    install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+  fi
+done
+
+mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+chown -R root:root $PKG/usr/doc
+find $PKG/$PREFIX/doc -type f -exec chmod -c 0644 {} \;
+
+mkdir -p $PKG/install
+test -r $CWD/slack-desc && \
+cat $CWD/slack-desc > $PKG/install/slack-desc
+# -- finished install docs --
+
+cd $PKG 
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
+|| shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"
+
+conclude "Done ..."

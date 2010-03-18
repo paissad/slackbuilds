@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=pms-linux
+Categories=Java;Network;AudioVideo;
+Comment=Java Upnp Media Server dedicated to PS3
+Exec=pms-linux 
+Icon=pms-linux
+Type=Application
+StartupNotify=true
+Terminal=false
+

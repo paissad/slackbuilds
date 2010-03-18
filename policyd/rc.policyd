@@ -1,0 +1,75 @@
+#!/bin/sh
+#
+# /etc/rc.d/rc.policyd
+#
+# start/stop/restart Policy daemon for Postfix
+# 
+# The PIDFILE is setup in the config file. Default is /var/run/policyd.pid
+# If you change the location in the config file then it **needs** to be 
+# changed here too.
+
+NAME="cbpolicyd"
+DESC="Policy Daemon"
+PIDFILE="/var/run/$NAME.pid"
+LOCKFILE="/var/lock/$NAME" # must be the same in /etc/cluebringer.conf
+CONFIG="/etc/cluebringer.conf"
+DODTIME=2  # time in seconds to wait before starting after a stop (restart)
+
+policyd_start() {
+if [ -x /etc/rc.d/rc.policyd ]; then
+	if [ -f $PIDFILE ]; then
+		echo "$NAME seems to be running with PID: $(cat $PIDFILE)"
+	else
+		if [ -r "$CONFIG" ]; then
+			echo "Starting $DESC ($NAME)"
+            /usr/sbin/$NAME -c $CONFIG 1> /dev/null 
+            RETVAL=$?                                                        
+            echo                                                             
+            [ $RETVAL -eq 0 ] && touch $LOCKFILE            
+            return $RETVAL  
+
+        else
+			echo "$CONFIG is missing or unreadable.  Exiting..."
+			exit 1
+        fi
+   fi
+fi
+}
+
+policyd_stop() {
+	if [ -f $PIDFILE ]; then
+		echo "Stopping $DESC ($NAME)"
+		/bin/kill $(cat $PIDFILE)
+		RETVAL=$?
+		echo
+		[ $RETVAL -eq 0 ] && rm -f $LOCKFILE
+	else
+		echo "$NAME is not running..."
+		exit 1
+	fi
+}
+
+policyd_restart() {
+  policyd_stop
+  sleep $DODTIME 
+  policyd_start
+}
+
+policyd_condrestart() {
+        if [ -f $LOCKFILE ]; then
+                policyd_restart                           
+        fi   
+}
+
+case "$1" in
+start|stop|restart|condrestart)
+	policyd_${1}
+  ;;
+*)
+	echo "USAGE: $0 start|stop|restart|condrestart"
+	exit 1
+  ;;
+esac
+
+exit $RETVAL
+

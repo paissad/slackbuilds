@@ -1,0 +1,19 @@
+If you want to start the script at boot, at this to your /etc/rc.d/rc.local file
+
+if [ -x /etc/rc.d/rc.pms-linux ]; then
+   /etc/rc.d/rc.pms-linux start
+fi
+
+You may want to add this to your /etc/rc.d/rc.local_shutdown too !
+if [ -x /etc/rc.d/rc.pms-linux ]; then
+   /etc/rc.d/rc.pms-linux stop
+fi
+OR 
+if [ -x /etc/rc.d/rc.pms-linux ]; then
+   /etc/rc.d/rc.pms-linux force-stop
+fi
+( because of possible slow shutdowns of pms-linux, using force-stop will kill 
+drastically the program, indeed it uses kill -9 )
+
+
+

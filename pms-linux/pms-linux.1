@@ -1,0 +1,60 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH "PMS-LINUX" "1"  "February  5, 2010" "" ""
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+pms-linux \- PS3 Media Server for Linux
+.SH SYNOPSIS
+.B pms-linux
+.RI [ options ]
+.br
+.SH DESCRIPTION
+.B pms-linux
+(PS3 Media Server for Linux) is a DLNA compliant Upnp Media Server for the PS3, written in Java, with the purpose of streaming or transcoding any kind of media files, with minimum configuration. It's backed up with the powerful Mplayer/FFmpeg packages.
+.PP
+.\" TeX users may be more comfortable with the \fB<whatever>\fP and
+.\" \fI<whatever>\fP escape sequences to invode bold face and italics,
+.\" respectively.
+.\"\fBpms-linux\fP is a program that...
+.SH NOTES
+You can start manually pms-linux by entering pms-linux into a terminal.
+By default, pms-linux uses PMS.conf if it exists as a configuration file and that file must be in the same directory where pms-linux has been started.
+.br
+For example, if your current directory is /foo/bar, pms-linux will use /foo/bar/PMS.conf if it does exist.
+.br
+At the same time, if you decide to save a configuration file too, it will be saved in directory where pms-linux has been started.
+.br
+But if you start pms-linux from the init.d script (/etc/init.d/pms-linux start), the program will use /etc/PMS.conf as configuration file because in the init.d script, /usr/share/pms-linux/PMS.conf is a symbolic link to /etc/PMS.conf.
+.br
+.B imporant:
+In any cases, the conf file must be named PMS.conf and obviously must be readable by the user !
+.br
+In the original /etc/PMS.conf file, the option "minimized" is set to "true" so that we don't need a running X server to start successfully pms-linux at boot startup.
+.br
+.SH OPTIONS
+No options available yet.
+.SH SEE ALSO
+.BR mplayer (1),
+.BR mencoder (1),
+.BR ffmpeg (1),
+.BR vlc (1),
+.BR dcraw (1)
+.br
+.SH AUTHORS
+pms-linux was written by shagrath <ps3mediaserver@gmail.com>.
+.PP
+This manual page was written by Papa Issa DIAKHATE <paissad@gmail.com>,
+for the Debian project (and may be used by others).

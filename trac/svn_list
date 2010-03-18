@@ -1,0 +1,55 @@
+PLUGINS:
+
+* continuTrac
+https://svn-dev.rectang.com/continutrac
+
+* bitten
+http://svn.edgewall.org/repos/bitten/trunk
+
+* cruisecontrol
+https://cruisecontrol.svn.sourceforge.net/svnroot/cruisecontrol/trunk/cruisecontrol
+(slackbuild personnel)
+
+* doxygenplugin
+http://trac-hacks.org/svn/doxygenplugin/0.11/
+
+* perldocplugin
+http://trac.eprints.org/svn/iar/trunk/pyperldoc/0.9 
+
+* tracdown
+https://svn-dev.rectang.com/tracdown
+
+http://trac-hacks.org/svn/emoticonsplugin/0.9/
+
+http://trac-hacks.org/svn/graphvizplugin/0.11-0.7.5/
+
+http://trac-hacks.org/svn/tagsplugin/trunk/
+
+http://trac-hacks.org/svn/wikiincludeplugin/0.9/
+
+http://trac-hacks.org/svn/wikinfoplugin/0.9/
+
+http://trac-hacks.org/svn/screenshotsplugin/0.11/
+
+http://trac-hacks.org/svn/discussionplugin/0.11/
+
+http://trac-hacks.org/svn/guestbookplugin/0.10/
+
+http://trac-hacks.org/svn/accountmanagerplugin/trunk
+
+http://trac-hacks.org/svn/testcasemanagementplugin/trunk/
+
+http://trac-hacks.org/svn/svnauthzadminplugin/0.11/
+
+https://svn.geophysik.uni-muenchen.de/svn/tracmods/tracsvnauthzplugin/0.11/
+
+http://trac-hacks.org/svn/xmlrpcplugin/trunk/
+
+http://trac-hacks.org/svn/accountmanagerplugin/trunk
+
+http://svn.edgewall.org/repos/babel/contrib/glade/
+
+http://svn.edgewall.org/repos/babel/contrib/django/
+
+
+

@@ -1,0 +1,8 @@
+Policyd v2 (codenamed "cluebringer") is a multi-platform policy
+server for popular MTAs. This policy daemon is designed mostly
+for large scale mail hosting environments.
+The main goal is to implement as many spam combating and email
+compliance features
+
+Read README.Slackware.
+

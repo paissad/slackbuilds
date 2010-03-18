@@ -1,0 +1,33 @@
+Hi folks,
+
+Here are some of my SlackBuilds for Slackware.
+
+###########################################################################
+Before use, remember that YOU ARE AT YOUR OWN RISK! Don't blame me if your
+system explodes or suffer any other bad things.
+###########################################################################
+
+If you want use one of them, fakeroot package installed is recommended (you can
+find it in www.slackbuilds.org). With that, it's
+possible to run the SlackBuilds as normal user. Creating a user only for this
+task is very important too. 
+
+Requirements section in SlackBuilds do not show true requirements, it is used
+ more as reference than speak the truth. :)
+
+The "exit 1" or "shellout" function are in for a reason, do not remove them! If
+ a SB do not finish correctly, try to figure out the problem.
+
+Some download links are broken, so, if this happens, you may search source files by yourself.
+
+I either wrote myself or re-edited from another SlackBuild already 
+( slackbuilds.org for example )or even from the slackware ISO image.
+
+paissad.SlackBuild is a generic SlackBuild i use to create other ones.
+
+You should read the license for each software before using it :-)
+
+Hope, these scripts will be useful for you.
+
+-- Contact: webmaster@paissad.net
+

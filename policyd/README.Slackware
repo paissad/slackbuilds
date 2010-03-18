@@ -1,0 +1,61 @@
+This is the package of policyd v2 which is "totally" different from 
+policyd v1. Btw, if ever you installed policyd v1 1st, be aware that
+even if policyd v1 features are still in v2, the structure of policyd v1
+is quite different
+
+You may need to change the default value value of DOCROOT and|or HTTPD_USER
+in the SlackBuild.
+The value of DOCROOT must be the same either in the SlackBuild and the
+doinst.sh
+
+Installing Policyd v2.
+
+* Requirements for Policyd v2
+- MySQL or PostgreSQL or SQLite
+- Net::Server >= 0.96
+- Net::CIDR
+- Config::IniFiles (Debian based: libconfig-inifiles-perl, RPM based: perl-Config-IniFiles)
+- Cache::FastMmap (Debian based: libcache-fastmmap-perl, RPM based: perl-Cache-FastMmap)
+- Mail::SPF (Required for CheckSPF module)
+
+* Requirements for webui
+- PHP v5+ (compiled with PDO support for your DB)
+
+** I suggest you to install each required Perl module via cpan command like this for example:
+cpan -i Net::CIDR
+ 
+== After installation
+
+1°) Adjust /etc/cluebringer.conf with your MySQL database details.
+
+2°) Adjust also the values in $DOCROOT/includes/config.php for the Mysql server details.
+
+3°)  Setup Postfix to use cbpolicyd...
+Add the following Postfix config... ( main.cf of postfix :-) )
+	check_policy_service inet:127.0.0.1:10031
+in BOTH  smtpd_recipient_restrictions and smtpd_end_of_data_restrictions.
+
+** Optional Amavisd Supprt ***
+
+4°) Copy your amavisd from /usr/sbin/amavisd and patch it with 
+/usr/doc/policyd-$VERSION/contrib/amavisd-new-2.5.3_policyd-200802070918.patch like this...
+$ patch < contrib/amavisd-new-2.5.3_policyd-200802070918.patch
+After this change your initscripts to start the patched amavisd.
+
+5°) Copy amavisd-policyd.pm where you see fit, and add this configuration line to your amavisd.conf file...
+include_config_files('/path/to/amavisd-policyd.pm');
+
+my $DB_dsn = "DBI:mysql:database=policyd;host=localhost";  # to point to your MySQL DB
+
+6°) Browse to the web gui to configure
+http://localhost/policyd
+There is an example of httpd conf in /usr/doc/policyd-$VERSION/contrib/httpd/
+
+7°) Don't forget to make /etc/rc.d/rc.policyd executable
+chmod +x /etc/rc.d/rc.policyd
+
+8°) Add it to your /etc/rc.d/rc.local  for startup & /etc/rc.d/rc.local_shutdown for shutdown.
+
+Papa Issa DIAKHATE (paissad) <paissad@gmail.com> 
+
+

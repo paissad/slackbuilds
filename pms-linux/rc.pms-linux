@@ -1,0 +1,89 @@
+#!/bin/bash
+#
+# Author: Papa Issa DIAKHATE <paissad@gmail.com>
+DESC="PS3 Media Server"
+NAME=pms-linux
+CONF_FILE=/usr/share/$NAME/PMS.conf
+CONF_DIR=`dirname $CONF_FILE`
+
+# Be aware of permissions of that directories if you want to change these
+# variables
+LOGDIR=/var/log/$NAME
+PIDFILE=/var/run/$NAME.pid
+DODTIME=10                   # Time to wait for the server to die, in seconds
+# If this value is set too low you might not let the program to die gracefully
+# and 'restart' will not work
+
+# We must have a configuration file if we want to start the init.d 
+# script 
+test -f $CONF_FILE \
+|| { echo "Must set a valid configuration file"; exit 1; }
+test -r $CONF_FILE \
+|| { echo "The conf file $CONF_FILE is not readable !" ; exit 1; }
+
+#--------------------------------------------------------------------------
+# Some color codes
+bldred=$'\e[1;31m' # Red
+bldylw=$'\e[1;33m' # Yellow
+txtrst=$'\e[0m'    # Text Reset
+
+warnout(){
+    echo -e ""$bldylw"Warning:$txtrst $1"
+}
+#--------------------------------------------------------------------------
+running(){
+	pid=`pgrep -f 'java .*/usr/share/pms-linux/pms.jar.*'`
+}
+#--------------------------------------------------------------------------
+# We test the existence of the pid file
+test_pidfile(){
+	test -e $PIDFILE \
+	|| warnout "$NAME seems to have been started manually (not by the rc.d script)."
+}
+#--------------------------------------------------------------------------
+do_start(){
+	running && { warnout "$NAME is already running !"; test_pidfile; exit 0; }
+	echo "Starting $DESC : $NAME"
+	( cd $CONF_DIR ; setsid /usr/bin/pms-linux 1> /dev/null; ) 
+}
+#--------------------------------------------------------------------------
+do_stop(){
+	running || { warnout "$NAME is NOT running !"; exit 0; }	
+	echo "Stopping $DESC : $NAME"
+	kill $pid 
+	rm -f "$PIDFILE"
+}
+#--------------------------------------------------------------------------
+do_force-stop(){
+	running || { warnout "$NAME is NOT running !"; exit 0; }	
+	echo "Stopping $DESC : $NAME"
+	kill -9 $pid 
+	rm -f "$PIDFILE"
+}
+#--------------------------------------------------------------------------
+do_restart(){
+do_stop; sleep $DODTIME; do_start;
+}
+#--------------------------------------------------------------------------
+do_force-restart(){
+do_force-stop; sleep $DODTIME; do_start;
+}
+#--------------------------------------------------------------------------
+do_status(){
+	echo -n " * $NAME is "
+	( running || { echo "NOT running "; exit 0; } )
+	( running && { echo "running (PID -> $(echo $pid))"; test_pidfile; exit 0; } )
+}
+#--------------------------------------------------------------------------
+
+case "$1" in 
+
+	start|stop|force-stop|restart|force-restart|status)
+	do_${1}
+	;;
+	*)
+	echo "Usage: $SCRIPTNAME {start|stop|force-stop|restart|force-restart|status}"
+	exit 1
+	;;
+esac
+
