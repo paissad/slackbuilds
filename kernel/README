@@ -1,0 +1,23 @@
+After running the slackbuild
+The following packages will be created:
+
+kernel-huge-$VERSION-x86_64-1_****
+kernel-modules-$VERSION-x86_64-1_****
+kernel-headers-$VERSION-x86_64-1_****
+kernel-firmware-$VERSION-noarch-1_****
+kernel-source-$VERSION-noarch-1_****
+kernel-docs-$VERSION-noarch-1_**** (if $BUILD_DOCS=yes)
+
+You should install in this order
+1 ->  kernel-$KERN_NAME( where $KERN_NAME = huge, generic or whatever ), 
+2 ->  kernel-modules 
+3 ->  kernel-headers
+After you may install as you want..
+
+Create an initrd image if you want or need one.
+Read /boot/README.initrd
+
+Don't forget to configure & run lilo too.
+
+Enjoy !
+

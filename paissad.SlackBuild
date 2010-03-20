@@ -22,11 +22,8 @@
 
 # Requirements:
 # Suggests:
-
-time_start_script=$(date +%s)
-
 PACKAGER_ID=${PACKAGER_ID:-$USER}
-PACKAGER=${PACKAGER:-$USER@$(hostname)}
+PACKAGER=${PACKAGER:-$USER@$HOSTNAME}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-}
@@ -83,8 +80,6 @@ shellout(){
 warnout(){
     echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
 }
-
-# Download of the source !
 if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
     introduce "Start downloading ${SRCNAM}-${VERSION}.$EXT" 
     wget "$URL" || shellout "Downloading ${SRCNAM}-${VERSION}.$EXT"
@@ -98,6 +93,7 @@ rm -rf $PRGNAM-$VERSION
 tar xvf $CWD/${SRCNAM}-${VERSION}.$EXT \
 || shellout "Extracting ${SRCNAM}-${VERSION}.$EXT"
 
+# Download of the source !
 introduce "Start SlackBuild $PRGNAM-$VERSION"
 test -d $PRGNAM-$VERSION || \
 mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
@@ -134,11 +130,8 @@ CXXFLAGS="$SLACKCFLAGS" \
 --docdir=$PREFIX/doc/$PRGNAM-$VERSION \
 --build=$ARCH-slackware-linux \
 || shellout "configure of $PRGNAM-$VERSION failed"
-conclude "./configure finished successfully"
 
-introduce "Running make"
 make -j${NUMJOBS} || shellout "make failed." 
-introduce "Running make install"
 make DESTDIR=$PKG install || shellout "make install failed"
 
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
@@ -158,7 +151,7 @@ cat << EODESC > $PKG/install/slack-desc
 # customary to leave one space after the ':'.                                  
 
          |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
+$PRGNAM:        ( $PRGNAM ) 
 $PRGNAM:
 $PRGNAM:
 $PRGNAM:
@@ -211,6 +204,11 @@ ${PKG}/install/slack-desc
 set -e
 
 cd $PKG 
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
+|| shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"
+
+conclude "Done ..."
+G 
 introduce "Running makepkg ..."
 /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
 || shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"

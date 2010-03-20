@@ -1,0 +1,501 @@
+#!/bin/bash
+
+# Copyright 2010, Papa Issa DIAKHATE (paissad), Montpellier, FRANCE. 
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Requirements:
+# Suggests:
+
+time_start_script=$(date +%s)
+
+PACKAGER_ID=${PACKAGER_ID:-$USER}
+PACKAGER=${PACKAGER:-$USER@$(hostname)}
+DATE=$(LC_ALL=C date +%d-%b-%Y)
+
+PRGNAM=${PRGNAM:-kernel}
+SRCNAM=${SRCNAM:-linux}
+KERN_NAME=${KERN_NAME:-huge}  # Usually huge or generic, but you may chose what you want
+MAIN_KERNEL="v2.6"    # Normally you do not need to change this !
+KERN_CONFIG=${KERN_CONFIG:-menuconfig}   # Ex: silentoldconfig, menuconfig ...
+RUN_KERN_CONFIG=${RUN_KERN_CONFIG:-no} # set to "yes" if you want to run the config in any cases 
+BUILD_DOCS=${BUILD_DOCS:-no}  # change to "yes" if you want to build docs 
+VERSION=${VERSION:-auto}
+APPLY_PATCH=${APPLY_PATCH:-no}
+PATCH=${PATCH:-}           # example: if VERSION=2.6.32 and PATCH=3 you will have 2.6.32.3,
+ARCH=${ARCH:-$(uname -m)}      # Just do VERSION=2.6.32.3 (easier). If you use VERSION=auto, then you
+BUILD=${BUILD:-1}              # obviously don't need to have a patch since latest version has no patch 
+CWD=${CWD:-`pwd`}
+TMP=${TMP:-/tmp/SBp}
+PKG=${PKG:-$TMP/package-$PRGNAM}
+OUTPUT=${OUTPUT:-/tmp}
+SHORT_EXT=${SHORT_EXT:-bz2}   # gz or bz2
+EXT=${EXT:-tar.$SHORT_EXT}  # Do not change this ... unless you know what you do
+SHORT_URL=${SHORT_URL:-http://www.kernel.org/pub/linux/kernel/$MAIN_KERNEL}
+TAG=${TAG:-_paissad}
+PKGTYPE=${PKGTYPE:-tgz}
+NUMJOBS=${NUMJOBS:-}
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE \
+CHANGELOG ChangeLog HACKING INSTALL MAINTAINERS NEWS ReadMe README \
+THANKS TODO RELEASE UPGRADING FAQ HELP"}
+
+set -e
+
+txtred=$'\e[0;31m' # Red
+txtgrn=$'\e[0;32m' # Green
+txtylw=$'\e[0;33m' # Yellow
+txtblu=$'\e[0;34m' # Blue
+txtpur=$'\e[0;35m' # Purple
+txtcyn=$'\e[0;36m' # Cyan
+txtrst=$'\e[0m'    # Text Reset
+
+frame()
+{
+    WIDTH=78
+    STARS="++----------------------------------------------------------------------------+"
+    SPACES="                                                                               "
+    printf "%s\n" "${STARS:1:$WIDTH}"
+    while read line ; do
+        HALF="${SPACES:1:$((($WIDTH-${#line})/2))}"
+        LINE="$HALF$line$SPACES"
+        printf "+%s+\n" "${LINE:1:$(($WIDTH-2))}"
+    done
+    printf "%s\n" "${STARS:1:$WIDTH}"
+}
+introduce(){
+    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst \c "; sleep 2;
+}
+conclude(){
+    echo -e "${txtgrn}\n# $1 \n${txtrst}"; sleep 2;
+}
+shellout(){
+    echo -e "${txtred}Error:${txtrst} $1 ${txtcyn}(exit status -> $?)${txtrst}"; exit 1;
+}
+warnout(){
+    echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
+}
+
+LATEST_KERNEL=$(wget -q $SHORT_URL -O - \
+| grep LATEST-IS \
+| tail -n 1 \
+| sed 's/^<.*>LATEST-IS-\(.*\)<.*/\1/') \
+|| shellout "You cannot connect to www.kernel.org, check your connecion"
+
+if [ $VERSION = auto ]; then
+      VERSION=$LATEST_KERNEL 
+fi
+
+# Fancy function to create a progress bar ( i will use it for tar xvf btw )
+# The function takes one argument, which is the action to "progress bar"
+# This progress bar works only for tar program
+progress_bar(){
+i=0
+bar=""
+#columns=`expr $(tput cols)`
+columns=80
+while ((i < (`expr columns` - 17) )); do
+   bar="$bar=" ; ((i += 1));
+done
+barlength=${#bar}
+number_total=`expr $(tar tf $CWD/${SRCNAM}-${VERSION}.$EXT 2> /dev/null | wc -l)`
+i=1
+$1 | while read ; do
+    # Number of bar segments to draw.
+   n=$((i*barlength / number_total))
+   # percentage
+   percent=$((i*100 / number_total))
+   printf "\r[%-${barlength}s] %3d%% complete" "${bar:0:n}>" $percent
+   ((i++));
+done
+echo
+}
+
+URL=$SHORT_URL/$SRCNAM-$VERSION.$EXT
+URL_TESTING=$SHORT_URL/testing/$SRCNAM-$VERSION.$EXT
+
+## Let's check if the kernel specified does exit in www.kernel.org
+## I just try to download the ChangeLog file, if it succeeds, that's good !
+( wget -q "$SHORT_URL/ChangeLog-$VERSION" -O /dev/null \
+&& echo "kernel -> OK." ) \
+|| ( wget -q "$SHORT_URL/testing/ChangeLog-$VERSION" -O /dev/null \
+&&  echo "kernel -> OK." ) \
+|| warnout "It's almost sure that the kernel you specified does not exist !!!
+         And probably, the download will fail"
+
+# If we give a value to patch version to retreive,
+# then we change APPLY_PATCH to value "yes" !!
+test -z $PATCH || APPLY_PATCH=yes
+
+print_info(){
+echo
+echo -e ""$txtgrn"Your distribution is....:"$txtcyn" $(cat /etc/slackware-version || exit 0)"
+echo -e ""$txtgrn"Your architecture is....:"$txtcyn" $ARCH"
+echo -e ""$txtgrn"Your hostname is........:"$txtcyn" $(hostname)"
+echo -e ""$txtgrn"Your current kernel is..:"$txtcyn" `uname -r`"
+echo -e ""$txtgrn"The kernel to build is..:"$txtcyn" $VERSION"
+echo -e ""$txtgrn"Applying a patch .......:"$txtcyn" version of patch -> ($APPLY_PATCH) $PATCH"
+echo -e ""$txtgrn"Building kernel docs ...:"$txtcyn" ($BUILD_DOCS)"
+echo -e "$txtrst" ; sleep 5;
+}
+print_info
+
+# ============================================================================
+# ==============          LET'S PREPARE THE WORK :-)           ===============
+# ============================================================================
+
+# Download of the source !
+if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
+    introduce "Start downloading ${SRCNAM}-${VERSION}.$EXT" 
+    wget "$URL" || wget "$URL_TESTING" \
+  || shellout "Downloading ${SRCNAM}-${VERSION}.$EXT"
+    conclude "Download of ${SRCNAM}-${VERSION}.$EXT finished successfully !"
+fi
+
+# We import the public key
+introduce "Importing public key of kernel.org"
+gpg --keyserver wwwkeys.pgp.net --recv-keys 0x517D0F0E \
+|| shellout "importing public key failed."
+conclude "importing public key finished successfully."
+
+## We download signature of the source. 
+introduce "Downloading signature for this kernel"
+wget -c "$URL.sign" || wget -c "$URL_TESTING.sign" \
+|| shellout "Donwloading gpg public key"
+conclude "Signature download finished successfully."
+
+# We verify the source.
+introduce "Verifying source with public gpg key"
+gpg --verify "$SRCNAM-$VERSION.$EXT.sign" "$SRCNAM-$VERSION.$EXT" \
+|| shellout "gpg --verify failed for $SRCNAM-$VERSION.$EXT" 
+
+# Download of the patch if specified
+if [ $APPLY_PATCH = yes ]; then
+    introduce "Downloading patch-$VERSION.$PATCH.$SHORT_EXT"
+    wget -c $SHORT_URL/patch-$VERSION.$PATCH.$SHORT_EXT \
+    || wget -c $SHORT_URL/testing/patch-$VERSION.$PATCH.$SHORT_EXT \
+    || shellout "download of patch patch-$VERSION.$PATCH.$SHORT_EXT failed."
+
+    # Let's download the signature of the patch & verify it !
+    introduce "Downloading signature of the patch & verify it"
+    wget -q -c $SHORT_URL/patch-$VERSION.$PATCH.$SHORT_EXT.sign \
+    || wget -q -c $SHORT_URL/testing/patch-$VERSION.$PATCH.$SHORT_EXT.sign \
+    || shellout "Download of patch-$VERSION.$PATCH.$SHORT_EXT.sign failed."
+
+    gpg --verify patch-$VERSION.$PATCH.$SHORT_EXT.sign patch-$VERSION.$PATCH.$SHORT_EXT \
+    || shellout "Verification of the patch failed."
+    conclude "Signature of the patch downloaded & verified successfully."
+fi
+# -- End of patch stuff ! ------------
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP || exit 1
+rm -rf $PRGNAM-$VERSION
+
+# Extraction of the source
+introduce "Extracting kernel source ( $SRCNAM-$VERSION.$EXT )"
+progress_bar "tar xvf $CWD/${SRCNAM}-${VERSION}.$EXT" \
+|| shellout "Extracting kernel failed."
+conclude "Kernel extraction finished successfully ..."
+
+# ============================================================================
+# ==============          LET'S BEGIN THE REAL WORK :-)        ===============
+# ============================================================================
+
+introduce "Start SlackBuild $PRGNAM-$VERSION"
+
+test -d $PRGNAM-$VERSION || \
+mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
+cd $TMP/$PRGNAM-$VERSION
+
+# patch the tree if specified ! 
+if [ $APPLY_PATCH = yes ]; then
+        introduce "Applying patch -> $PATCH"
+   if [ $SHORT_EXT = bz2 ]; then
+      bunzip2 -c $CWD/patch-$VERSION.$PATCH.$SHORT_EXT | patch -p1 --verbose \
+      || shellout "Applying patch failed."
+   else
+      gunzip -c $CWD/patch-$VERSION.$PATCH.$SHORT_EXT | patch -p1 --verbose \
+      || shellout "Applying patch failed."
+   fi
+   VERSION+=.$PATCH
+   conclude "Patch ( $PATCH ) applied successfully.\nAnd the new version of the package is then $VERSION"
+fi
+
+if [ -f $CWD/config-$VERSION ]; then 
+        cat $CWD/config-$VERSION > .config
+elif [ -f /proc/config.gz ]; then
+        zcat /proc/config.gz > .config
+else
+        warnout "You don't seem to have a config-$VERSION file in your current dir\n \
+        neither /proc/config.gz file, so we will run make $KERN_CONFIG ...\n\n"
+		RUN_KERN_CONFIG="yes"
+fi
+
+if [ "$RUN_KERN_CONFIG" =  "yes" ]; then
+        make $KERN_CONFIG || shellout "make $KERN_CONFIG failed."
+fi
+
+# ============= PACKAGING ================= #
+
+PACKAGING="$KERN_NAME modules headers firmware source "
+if [ $BUILD_DOCS = yes ]; then
+        PACKAGING+=" docs"
+fi
+
+PKGKERN=$PKG/kernel-$KERN_NAME
+PKGHEAD=$PKG/kernel-headers
+PKGMOD=$PKG/kernel-modules
+PKGSRC=$PKG/kernel-source
+PKGFIRM=$PKG/kernel-firmware
+PKGDOCS=$PKG/kernel-docs
+
+if [ "$ARCH" = "x86_64" ]; then
+        NUMJOBS=2;
+fi
+
+introduce "Running target ** make all -j$NUMJOBS **"
+make all -j ${NUMJOBS} || shellout "make all -j $NUMJOBS failed."
+
+introduce "Running target ** modules_prepare **"
+make modules_prepare || shellout "make modules_prepare failed."
+
+mkdir -p $PKGKERN/boot 
+mkdir -p $PKGKERN/install
+cp arch/x86/boot/bzImage System.map $PKGKERN/boot/ || exit 1
+chmod 0644 $PKGKERN/boot/* || exit 1
+cat .config > $PKGKERN/boot/config-$KERN_NAME-$VERSION || exit 1
+mv $PKGKERN/boot/{bzImage,vmlinuz-$KERN_NAME-$VERSION} || exit 1
+mv $PKGKERN/boot/{System.map,System.map-$KERN_NAME-$VERSION} || exit 1
+cd $PKGKERN/boot || exit 1
+ln -sf vmlinuz-$KERN_NAME-$VERSION vmlinuz || exit 1
+ln -sf System.map-$KERN_NAME-$VERSION System.map || exit 1
+ln -sf config-$KERN_NAME-$VERSION config  || exit 1
+conclude "Building & installing kernel image finished successfully."
+
+# Install kernel headers
+introduce "Running target ** headers_install **"
+cd $TMP/$PRGNAM-$VERSION
+mkdir -p $PKGHEAD/install
+make -j $NUMJOBS headers_install INSTALL_HDR_PATH=$PKGHEAD/usr \
+|| shellout "make headers_install failed."
+conclude "Building & installing  headers finished successfully."
+
+# Install modules 
+introduce "Running target ** modules_install **"
+mkdir -p $PKGMOD/install
+cd $TMP/$PRGNAM-$VERSION
+make -j $NUMJOBS modules_install INSTALL_MOD_PATH=$PKGMOD \
+|| shellout "make modules_install failed."
+# Let's compress modules ...
+# (
+#    cd $PKGMOD/lib/modules/$VERSION/kernel
+#    find . -name "*.ko" -exec gzip {} \;
+# )
+# Let's remove the default symlinks (we will create the in the slack-desc)
+cd $PKGMOD/lib/modules/$VERSION
+rm -f source build
+conclude "Building & installing modules finished successfully."
+
+# Install firmwares
+introduce "Running target ** firmware_install **"
+mkdir -p $PKGFIRM/lib/firmware
+mkdir -p $PKGFIRM/install
+cd $TMP/$PRGNAM-$VERSION
+make -j $NUMJOBS firmware_install INSTALL_FW_PATH=$PKGFIRM/lib/firmware \
+|| shellout "make firmware_install failed."
+conclude "Building & installing firmwares finished successfully."
+
+## Build docs ( if specified )
+if [ "$BUILD_DOCS" = "yes" ]; then
+   introduce "Running target ** mandocs **"
+   mkdir -p $PKGDOCS/install
+   cd $TMP/$PRGNAM-$VERSION
+   make -j $NUMJOBS mandocs || shellout "make mandocs failed."
+   # Install docs
+   # Let's change the emplacement where docs will be installed.
+   sed -i "s,/usr/local/man/man9,$PKGDOCS/usr/man/man9," \
+   Documentation/DocBook/Makefile || shellout "Changing installdocs dir failed."
+   make installmandocs || shellout "make installmandocs failed."
+   # Man docs should have 0644 rights
+   find $PKGDOCS -type f -exec chmod 0644 {} \;
+   conclude "Building & installing mandocs finished successfully."
+fi
+
+# Install source 
+introduce "Running target ** clean ** & install source"
+mkdir -p $PKGSRC/usr/src
+mkdir -p $PKGSRC/install
+make clean || shellout "make clean failed."
+cp -a $TMP/$PRGNAM-$VERSION $PKGSRC/usr/src/linux-$VERSION \
+|| shellout "Copying source files failed."
+cd $PKGSRC/usr/src
+ln -sf linux-$VERSION linux
+conclude "Building & installing firmwares finished successfully."
+
+# Installation of all slack-desc files.
+( test -r $CWD/slack-desc.$KERN_NAME && \
+cat $CWD/slack-desc.$KERN_NAME > $PKGKERN/install/slack-desc ) || \
+cat << EODESC > $PKGKERN/install/slack-desc
+# HOW TO EDIT THIS FILE:            
+# The "handy ruler" below makes it easier to edit a package description.  Line
+# up the first '|' above the ':' following the base package name, and the '|' 
+# on the right side marks the last column you can put a character in.  You
+# must
+# make exactly 11 lines for the formatting to be correct.  It's also           
+# customary to leave one space after the ':'.                                  
+
+         |-----handy-ruler----------------------------------------------------|
+kernel-$KERN_NAME:                                 ( kernel-$KERN_NAME ) 
+kernel-$KERN_NAME:
+kernel-$KERN_NAME: This is a Linux kernel with built-in support for most disk
+kernel-$KERN_NAME: controllers.
+kernel-$KERN_NAME: For instructions on the initrd, see README.initrd in the 
+kernel-$KERN_NAME: /boot directory.
+kernel-$KERN_NAME:
+kernel-$KERN_NAME: 
+kernel-$KERN_NAME: Packager: _PACKAGER on _BUILD_DATE
+kernel-$KERN_NAME: 
+kernel-$KERN_NAME: 
+EODESC
+
+# Install remaining slack-desc.
+for i in $PACKAGING 
+do
+    if [ -r $CWD/slack-desc.$i ]; then
+       cat $CWD/slack-desc.$i > $PKG/kernel-$i/install/slack-desc \
+       || shellout "Install of slack-desc for kernel-$i failed."
+    fi
+done
+
+for i in $PACKAGING
+do
+   if [ -r $PKG/kernel-$i/install/slack-desc ]; then
+       # We change the default values in the slack-desc 
+       sed -i "s|_PACKAGER|${PACKAGER}|g; s|_BUILD_DATE|${DATE}|g" \
+       ${PKG}/kernel-$i/install/slack-desc || true
+   fi
+done
+
+# Install a doinst.sh, if it exists
+for i in $PACKAGING;
+do
+    if [ -r $CWD/doinst.sh.$i ]; then
+        cat $CWD/doinst.sh.$i > $PKG/kernel-$i/install/doinst.sh
+    fi
+done
+
+# ================== Let's modify some doinst.sh files =============== #
+
+# Let's create symlinks for kernel-modules package
+cat <<EOFDOINST >> $PKGMOD/install/doinst.sh
+( cd lib/modules/$VERSION ; ln -sf /usr/src/linux-$VERSION build )
+( cd lib/modules/$VERSION ; ln -sf /usr/src/linux-$VERSION source )
+/sbin/depmod -a
+EOFDOINST
+
+# ================= Let's create the packages =================== #
+
+### packaging kernel-$KERN_NAME
+(
+    cd $PKGKERN
+    chown -R root.root . ;
+  /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$KERN_NAME-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
+  || shellout "makepkg failed for $PKGKERN" ;
+)
+### packaging kernel-modules
+(
+    cd $PKGMOD
+    chown -R root.root . ;
+  /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-modules-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
+  || shellout "makepkg failed for $PKGMOD" ;
+)
+### packaging kernel-headers
+(
+    cd $PKGHEAD
+    chown -R root.root . ;
+  /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-headers-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
+  || shellout "makepkg failed for $PKGHEAD" ;
+)
+### packaging kernel-firmware
+(
+    cd $PKGFIRM
+    chown -R root.root . ;
+  /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-firmware-$VERSION-noarch-$BUILD$TAG.$PKGTYPE \
+  || shellout "makepkg failed for $PKGFIRM" ;
+)
+### packaging kernel-source
+(
+    cd $PKGSRC
+    chown -R root.root . ;
+  /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-source-$VERSION-noarch-$BUILD$TAG.$PKGTYPE \
+  || shellout "makepkg failed for $PKGSRC" ;
+)
+### packaging docs 
+if [ "$BUILD_DOCS" = "yes" ]; then
+   cd $PKGDOCS
+   chown -R root.root . 
+   /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-docs-$VERSION-noarch-$BUILD$TAG.$PKGTYPE \
+   || shellout "makepkg failed for $PKGDOCS" 
+fi
+
+time_end=$(date +%s)
+elapsed_time_script=`expr $time_end - $time_start_script`
+#Convert seconds to h:m:s format
+_hms(){
+  local S=${1}
+  ((h=S/3600))
+  ((m=S%3600/60))
+  ((s=S%60))
+  printf "%dh:%dm:%ds\n" $h $m $s
+}
+conclude "The script has been running during $(_hms $elapsed_time_script)"
+conclude "Done ..."
+
+exit 0
+
+## Finished, what's written below is only a project ...
+# ================================================
+# == I aimed to make a package for initrd   ======
+# == i will perhaps, do it later :-)        ======
+# ================================================
+
+INITRD=${INITRD:-yes}
+if [ "$INITRD" = "yes" ]; then
+        PKGINITRD=$PKG/kernel-initrd
+        mkdir -p $PKGINITRD/boot
+        
+        ROOTFS=ext3
+        ROOTDEV=/dev/md2
+        MODULES_LIST=ext3
+        KEYMAP=fr-latin9
+        SOURCE_TREE=$PKGINITRD/boot/initrd-tree
+        OUTPUT=$PKGINITRD/boot
+
+        /sbin/mkinitrd -c -f $ROOTFS -k $VERSION -r $ROOTDEV -s
+        $SOURCE_TREE -L -R -m $MODULES_LIST -l $KEYMAP -o $OUTPUT
+		
+		### packaging initrd
+		cd $PKGINITRD
+		chown -R root.root . 
+		/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-initrd-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
+		|| shellout "makepkg failed for $PKGINITRD" 
+
+fi
+
