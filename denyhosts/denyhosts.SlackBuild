@@ -23,23 +23,21 @@
 # Requirements:
 # Suggests:
 
-time_start_script=$(date +%s)
-
 PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(hostname)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
-SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
+PRGNAM=${PRGNAM:-denyhosts}
+SRCNAM=${SRCNAM:-DenyHosts}
+VERSION=${VERSION:-2.6}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
-EXT=${EXT:-tar.bz2}
-URL=${URL:-http://downloads.sourceforge.net/project/$SRCNAM-$VERSION.$EXT}
+EXT=${EXT:-tar.gz}
+URL=${URL:-http://sourceforge.net/projects/denyhosts/files/denyhosts/2.6/$SRCNAM-$VERSION.$EXT/download}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
@@ -83,8 +81,6 @@ shellout(){
 warnout(){
     echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
 }
-
-# Download of the source !
 if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
     introduce "Start downloading ${SRCNAM}-${VERSION}.$EXT" 
     wget "$URL" || shellout "Downloading ${SRCNAM}-${VERSION}.$EXT"
@@ -98,51 +94,52 @@ rm -rf $PRGNAM-$VERSION
 tar xvf $CWD/${SRCNAM}-${VERSION}.$EXT \
 || shellout "Extracting ${SRCNAM}-${VERSION}.$EXT"
 
+# Download of the source !
 introduce "Start SlackBuild $PRGNAM-$VERSION"
 test -d $PRGNAM-$VERSION || \
 mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
 chown -R root:root .
-chmod -R u+w,go+r-w,a-s .
+find . \
+\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+-exec chmod 755 {} \; -o \
+\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
+-perm 400 \) -exec chmod 644 {} \;
 
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
+python setup.py install --root $PKG \
+|| shellout "python setup.py install failed."
 
-if [ "$ARCH" = "i486" ]; then
-  SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
-elif [ "$ARCH" = "i686" ]; then
-  SLACKCFLAGS="-O2 -march=i686 -mtune=i686"
-elif [ "$ARCH" = "x86_64" ]; then
-  SLACKCFLAGS="-O2 -fPIC"
-  LIBDIRSUFFIX="64"
-  NUMJOBS=${NUMJOBS:-2}
-fi
+mkdir -p $PKG/usr/sbin
+mkdir -p $PKG/etc/{rc.d,logrotate.d}
+mkdir -p $PKG/var/log/denyhosts
 
-CFLAGS="$SLACKCFLAGS" \
-CXXFLAGS="$SLACKCFLAGS" \
-./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
-|| shellout "configure of $PRGNAM-$VERSION failed"
-conclude "./configure finished successfully"
+# Let's change the default name & place of denyhosts.py
+mv $PKG/usr/bin/denyhosts.py $PKG/usr/sbin/denyhosts || exit 1
 
-introduce "Running make"
-make -j${NUMJOBS} || shellout "make failed." 
-introduce "Running make install"
-make DESTDIR=$PKG install || shellout "make install failed"
+# Let's copy the main conf file in /etc
+install -m 0644 $TMP/$PRGNAM-$VERSION/denyhosts.cfg-dist $PKG/etc/denyhosts.conf.new || exit 1
 
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-| cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+# manpage & zip it !
+install -D -m 0644 $CWD/denyhosts.8 $PKG/usr/man/man8/denyhosts.8 || exit 1
+gzip -9 $PKG/usr/man/man8/denyhosts.8 || exit 1
+# rc.sript
+install -m 0755 $TMP/$PRGNAM-$VERSION/daemon-control-dist $PKG/etc/rc.d/rc.denyhosts.new || exit 1
+#
+# 1°) We change the occurences of denyhosts.py to denyhosts in rc.denyhosts.new
+# 2°) We change the default value of $DENYHOSTS_BIN
+# 3°) We change the default value of $DENYHOSTS_CFG (conf file)
+# 4°) We change the default value of $DENYHOSTS_LOCK
+sed -i \
+-e "s/\(denyhosts\)\.py/\1/g" \
+-e "s,\(^DENYHOSTS_BIN *= *\"\).*,\1/usr/sbin/denyhosts\"," \
+-e "s,\(^DENYHOSTS_CFG *= *\"\).*,\1/etc/denyhosts.conf\"," \
+-e "s,\(^DENYHOSTS_LOCK *= *\"\).*,\1/var/lock/denyhosts\"," \
+$PKG/etc/rc.d/rc.denyhosts.new \
+|| shellout "Changing default values in rc.denyhosts.new failed."
+
+# install logrotate file
+install -m 0644 $CWD/denyhosts.logrotate $PKG/etc/logrotate.d/denyhosts.new || exit 1
 
 # Installation of slack-desc
 mkdir -p $PKG/install 
@@ -158,31 +155,23 @@ cat << EODESC > $PKG/install/slack-desc
 # customary to leave one space after the ':'.                                  
 
          |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: http://
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
+denyhosts:                                   ( denyhosts )
+denyhosts:
+denyhosts: DenyHosts is a script intended to be run by Linux system 
+denyhosts: administrators to help thwart SSH server attacks (also known as
+denyhosts: dictionary based attacks and brute force attacks).
+denyhosts: 
+denyhosts: 
+denyhosts: Homepage: http://denyhosts.sourceforge.net
+denyhosts: 
+denyhosts: Packager: _PACKAGER on _BUILD_DATE
+denyhosts:
 EODESC
 
 # Install a doinst.sh, if it exists
 if [ -r $CWD/doinst.sh ]; then
    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
-
-## Install the manpages
-#( cd $PKG/usr/$PRGNAM/man ;
-#find . -type f -exec gzip -9 {} \;
-#for i in $( find . -type l ) ;do
-        #ln -s $( readlink $i ).gz $i.gz ; rm $i;
-#done )
-##-- finished intall manpages --
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION
@@ -209,20 +198,7 @@ sed -i "s|_PACKAGER|${PACKAGER}|g; s|_BUILD_DATE|${DATE}|g" \
 ${PKG}/install/slack-desc || true
 
 cd $PKG 
-introduce "Running makepkg ..."
 /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
 || shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"
 
-time_end=$(date +%s)
-elapsed_time_script=`expr $time_end - $time_start_script`
-#Convert seconds to h:m:s format
-_hms(){
-  local S=${1}
-  ((h=S/3600))
-  ((m=S%3600/60))
-  ((s=S%60))
-  printf "%dh:%dm:%ds\n" $h $m $s
-}
-conclude "The script has been running during $(_hms $elapsed_time_script)"
 conclude "Done ..."
-

@@ -2,7 +2,7 @@
 
 # Copyright 2006, 2007, 2008, 2009  Patrick J. Volkerding, Sebeka, MN, USA
 # All rights reserved.
-# Modified by paissad
+# Modified by paissad 2010, Montpellier, FRANCE.
 #
 # Redistribution and use of this script, with or without modification, is
 # permitted provided that the following conditions are met:
@@ -24,6 +24,7 @@
 # This script was written using the one from slackbuilds.org as a reference,
 # so thanks to Adis Nezirovic ( adis _at_ linux.org.ba ) for the original work.
 
+time_start_script=$(date +%s)
 
 PKGNAM=httpd
 VERSION=${VERSION:-2.2.13}
@@ -227,4 +228,17 @@ fi
 
 cd $PKG
 /sbin/makepkg -l y -c n $TMP/${PKGNAM}-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE
+
+time_end=$(date +%s)
+elapsed_time_script=`expr $time_end - $time_start_script`
+#Convert seconds to h:m:s format
+_hms(){
+  local S=${1}
+  ((h=S/3600))
+  ((m=S%3600/60))
+  ((s=S%60))
+  printf "%dh:%dm:%ds\n" $h $m $s
+}
+conclude "The script has been running during $(_hms $elapsed_time_script)"
+conclude "Done ..."
 
