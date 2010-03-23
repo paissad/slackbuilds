@@ -29,22 +29,22 @@ PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(hostname)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
+PRGNAM=${PRGNAM:-lire}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
+VERSION=${VERSION:-2.1}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
-EXT=${EXT:-tar.bz2}
-URL=${URL:-http://downloads.sourceforge.net/project/${SRCNAM}-${VERSION}.$EXT}
+EXT=${EXT:-tar.gz}
+URL=${URL:-http://download.logreport.org/pub/${SRCNAM}-${VERSION}.$EXT}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
-DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE LICENSE.txt LICENSE.TXT \
+DOCS=${DOCS:-"docs/ CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE LICENSE.txt LICENSE.TXT \
 CHANGELOG ChangeLog CHANGELOG.txt CHANGELOG.TXT HACKING INSTALL INSTALL.txt \
 INSTALL.TXT MAINTAINERS NEWS ReadMe README README.txt THANKS TODO RELEASE UPGRADING FAQ HELP"}
 
@@ -106,13 +106,6 @@ cd $TMP/$PRGNAM-$VERSION
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
-
 if [ "$ARCH" = "i486" ]; then
   SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
 elif [ "$ARCH" = "i686" ]; then
@@ -158,17 +151,17 @@ cat << EODESC > $PKG/install/slack-desc
 # customary to leave one space after the ':'.                                  
 
          |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: 
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
+lire:                                 ( lire ) 
+lire: Lire is a full-featured and extensible set of utilities and API's to
+lire: generate statistics and reports from logfiles.
+lire: The first purpose of Lire is to ease the administration and the
+lire: monitoring of system services.
+lire:
+lire:
+lire: Homepage: http://www.logreport.org/
+lire: 
+lire: Packager: _PACKAGER on _BUILD_DATE
+lire: 
 EODESC
 
 # Install a doinst.sh, if it exists
@@ -176,12 +169,22 @@ if [ -r $CWD/doinst.sh ]; then
    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
 
+cd $PKG
+for conf in $(find etc/ -type f)
+do
+mv $conf $conf.new || exit 1
+cat <<EOF >> $PKG/install/doinst.sh
+config $conf.new
+EOF
+done
+
+
 ## Install the manpages
-#( cd $PKG/usr/man ;
-#find . -type f -exec gzip -9 {} \;
-#for i in $( find . -type l ) ;do
-        #ln -s $( readlink $i ).gz $i.gz ; rm $i;
-#done )
+( cd $PKG/usr/man ;
+find . -type f -exec gzip -9 {} \;
+for i in $( find . -type l ) ;do
+		ln -s $( readlink $i ).gz $i.gz ; rm $i;
+done )
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION

@@ -29,24 +29,25 @@ PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(hostname)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
+PRGNAM=${PRGNAM:-postfixadmin}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
+VERSION=${VERSION:-2.3}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
+DOCROOT=${DOCROOT:-/var/www/htdocs}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
-EXT=${EXT:-tar.bz2}
-URL=${URL:-http://downloads.sourceforge.net/project/${SRCNAM}-${VERSION}.$EXT}
+EXT=${EXT:-tar.gz}
+URL=${URL:-http://sourceforge.net/projects/postfixadmin/files/postfixadmin/${SRCNAM}_$VERSION.$EXT/download/}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
-DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE LICENSE.txt LICENSE.TXT \
-CHANGELOG ChangeLog CHANGELOG.txt CHANGELOG.TXT HACKING INSTALL INSTALL.txt \
-INSTALL.TXT MAINTAINERS NEWS ReadMe README README.txt THANKS TODO RELEASE UPGRADING FAQ HELP"}
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE LICENSE.TXT \
+CHANGELOG ChangeLog CHANGELOG.TXT  HACKING INSTALL INSTALL.TXT MAINTAINERS NEWS \
+ReadMe README README.txt THANKS TODO RELEASE UPGRADING FAQ HELP"}
 
 set -e
 
@@ -85,18 +86,18 @@ warnout(){
 }
 
 # Download of the source !
-if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
-    introduce "Start downloading ${SRCNAM}-${VERSION}.$EXT" 
-    wget "$URL" || shellout "Downloading ${SRCNAM}-${VERSION}.$EXT"
-    conclude "Download of ${SRCNAM}-${VERSION}.$EXT finished successfully !"
+if [ ! -r ${SRCNAM}_${VERSION}.$EXT ]; then
+    introduce "Start downloading ${SRCNAM}_${VERSION}.$EXT" 
+    wget "$URL" || shellout "Downloading ${SRCNAM}_${VERSION}.$EXT"
+    conclude "Download of ${SRCNAM}_${VERSION}.$EXT finished successfully !"
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP || exit 1
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/${SRCNAM}-${VERSION}.$EXT \
-|| shellout "Extracting ${SRCNAM}-${VERSION}.$EXT"
+tar xvf $CWD/${SRCNAM}_${VERSION}.$EXT \
+|| shellout "Extracting ${SRCNAM}_${VERSION}.$EXT"
 
 introduce "Start SlackBuild $PRGNAM-$VERSION"
 test -d $PRGNAM-$VERSION || \
@@ -104,45 +105,15 @@ mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
 chown -R root:root .
-chmod -R u+w,go+r-w,a-s .
+CONF_FILES="config.inc.php motd.txt motd-users.txt" 
+for i in $CONF_FILES
+do
+    cp -a $i $i.new || exit 1
+done
 
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
-
-if [ "$ARCH" = "i486" ]; then
-  SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
-elif [ "$ARCH" = "i686" ]; then
-  SLACKCFLAGS="-O2 -march=i686 -mtune=i686"
-elif [ "$ARCH" = "x86_64" ]; then
-  SLACKCFLAGS="-O2 -fPIC"
-  LIBDIRSUFFIX="64"
-  NUMJOBS=2
-fi
-
-CFLAGS="$SLACKCFLAGS" \
-CXXFLAGS="$SLACKCFLAGS" \
-./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
-|| shellout "configure of $PRGNAM-$VERSION failed"
-conclude "./configure finished successfully"
-
-introduce "Running make"
-make -j${NUMJOBS} || shellout "make failed." 
-introduce "Running make install"
-make DESTDIR=$PKG install || shellout "make install failed"
-
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-| cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+mkdir -p ${PKG}/${DOCROOT}
+cp -a $TMP/$PRGNAM-$VERSION ${PKG}/${DOCROOT}/postfixadmin \
+|| shellout "Copying files failed."
 
 # Installation of slack-desc
 mkdir -p $PKG/install 
@@ -158,17 +129,17 @@ cat << EODESC > $PKG/install/slack-desc
 # customary to leave one space after the ':'.                                  
 
          |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: 
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
+postfixadmin:                                 ( postfixadmin ) 
+postfixadmin:
+postfixadmin: Postfix Admin is a Web Based Management tool created for postfix
+postfixadmin: It is a PHP based application that handles Postfix Style
+postfixadmin: Domains and Users that are stored in MySQL or PostgreSQL.
+postfixadmin:
+postfixadmin:
+postfixadmin: Homepage: http://postfixadmin.sourceforge.net/
+postfixadmin: 
+postfixadmin: Packager: _PACKAGER on _BUILD_DATE
+postfixadmin: 
 EODESC
 
 # Install a doinst.sh, if it exists
@@ -176,12 +147,16 @@ if [ -r $CWD/doinst.sh ]; then
    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
 
-## Install the manpages
-#( cd $PKG/usr/man ;
-#find . -type f -exec gzip -9 {} \;
-#for i in $( find . -type l ) ;do
-        #ln -s $( readlink $i ).gz $i.gz ; rm $i;
-#done )
+# Let's remove the 1st & last / of the $DOCROOT variable
+DOCROOT=$( echo $DOCROOT | sed -e "s,^/,," -e "s,/$,,")
+
+# Let's adapt the doinst.sh
+for i in $CONF_FILES 
+do
+cat <<EOFDOINST >> $PKG/install/doinst.sh
+config $DOCROOT/postfixadmin/$i.new
+EOFDOINST
+done
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION
@@ -198,6 +173,9 @@ cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBui
 chown -R root:root $PKG/usr/doc/$PRGNAM-$VERSION
 find $PKG/$PREFIX/doc -type f -exec chmod 0644 {} \;
 
+mkdir -p $PKG/install
+test -r $CWD/slack-desc && \
+cat $CWD/slack-desc > $PKG/install/slack-desc
 # -- finished install docs --
 
 # We change the default values in the slack-desc 

@@ -36,7 +36,7 @@ MAIN_KERNEL="v2.6"    # Normally you do not need to change this !
 KERN_CONFIG=${KERN_CONFIG:-menuconfig}   # Ex: silentoldconfig, menuconfig ...
 RUN_KERN_CONFIG=${RUN_KERN_CONFIG:-no} # set to "yes" if you want to run the config in any cases 
 BUILD_DOCS=${BUILD_DOCS:-no}  # change to "yes" if you want to build docs 
-VERSION=${VERSION:-auto}
+VERSION=${VERSION:-auto}  # if 'auto', the SlackBuild will retreive latest stable kernel 
 APPLY_PATCH=${APPLY_PATCH:-no}
 PATCH=${PATCH:-}           # example: if VERSION=2.6.32 and PATCH=3 you will have 2.6.32.3,
 ARCH=${ARCH:-$(uname -m)}      # Just do VERSION=2.6.32.3 (easier). If you use VERSION=auto, then you
@@ -238,18 +238,29 @@ if [ $APPLY_PATCH = yes ]; then
    conclude "Patch ( $PATCH ) applied successfully.\nAnd the new version of the package is then $VERSION"
 fi
 
+previous_config=
 if [ -f $CWD/config-$VERSION ]; then 
-        cat $CWD/config-$VERSION > .config
+    previous_config=$CWD/config-$VERSION
+    cat $previous_config > .config
 elif [ -f /proc/config.gz ]; then
-        zcat /proc/config.gz > .config
+    zcat /proc/config.gz > .config
+	config_tmp=config.`uname -r`
+    cat .config > $config_tmp
+    previous_config=$config_tmp
 else
         warnout "You don't seem to have a config-$VERSION file in your current dir\n \
         neither /proc/config.gz file, so we will run make $KERN_CONFIG ...\n\n"
-		RUN_KERN_CONFIG="yes"
+    RUN_KERN_CONFIG="yes"
 fi
 
 if [ "$RUN_KERN_CONFIG" =  "yes" ]; then
         make $KERN_CONFIG || shellout "make $KERN_CONFIG failed."
+fi
+
+# Let's create the diff file about 2 kernel config files. 
+if [ "x$previous_config" != "x" ]; then
+    diff -U 0 $previous_config .config > $CWD/config.diff || true 
+    rm -f $config_tmp # this file may not exist before :)
 fi
 
 # ============= PACKAGING ================= #
@@ -490,12 +501,12 @@ if [ "$INITRD" = "yes" ]; then
 
         /sbin/mkinitrd -c -f $ROOTFS -k $VERSION -r $ROOTDEV -s
         $SOURCE_TREE -L -R -m $MODULES_LIST -l $KEYMAP -o $OUTPUT
-		
-		### packaging initrd
-		cd $PKGINITRD
-		chown -R root.root . 
-		/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-initrd-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
-		|| shellout "makepkg failed for $PKGINITRD" 
+    
+    ### packaging initrd
+    cd $PKGINITRD
+    chown -R root.root . 
+    /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-initrd-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
+    || shellout "makepkg failed for $PKGINITRD" 
 
 fi
 

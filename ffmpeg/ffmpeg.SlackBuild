@@ -29,17 +29,17 @@ PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(hostname)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
+PRGNAM=${PRGNAM:-ffmpeg}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
+SVN_URL=${SVN_URL:-svn://svn.ffmpeg.org/ffmpeg/trunk}
+SVN_REVISION=${SVN_REVISION:-"$(svn log -qr HEAD $SVN_URL | sed -n 's/^r\([0-9]\{1,\}\).*/\1/p')"}
+VERSION=${VERSION:-r$SVN_REVISION}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
-EXT=${EXT:-tar.bz2}
-URL=${URL:-http://downloads.sourceforge.net/project/${SRCNAM}-${VERSION}.$EXT}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
@@ -84,19 +84,18 @@ warnout(){
     echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
 }
 
-# Download of the source !
-if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
-    introduce "Start downloading ${SRCNAM}-${VERSION}.$EXT" 
-    wget "$URL" || shellout "Downloading ${SRCNAM}-${VERSION}.$EXT"
-    conclude "Download of ${SRCNAM}-${VERSION}.$EXT finished successfully !"
-fi
-
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP || exit 1
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/${SRCNAM}-${VERSION}.$EXT \
-|| shellout "Extracting ${SRCNAM}-${VERSION}.$EXT"
+
+# Download of the source !
+if [ ! -r ${SRCNAM}-${VERSION} ]; then
+    introduce "Start downloading ${SRCNAM} at revision ${SVN_REVISION}" 
+    svn export -r $SVN_REVISION $SVN_URL $PRGNAM-$VERSION \
+	|| shellout "Downloading ${SRCNAM}"
+    conclude "Download of ${SRCNAM} at revision $SVN_REVISION finished successfully !"
+fi
 
 introduce "Start SlackBuild $PRGNAM-$VERSION"
 test -d $PRGNAM-$VERSION || \
@@ -105,13 +104,6 @@ cd $TMP/$PRGNAM-$VERSION
 
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
-
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
 
 if [ "$ARCH" = "i486" ]; then
   SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -123,16 +115,117 @@ elif [ "$ARCH" = "x86_64" ]; then
   NUMJOBS=2
 fi
 
+# Configure ffmpeg features not autodetected by default
+
+if [ "${AMRNB:-yes}" = "no" ]; then
+  amr_nb=""
+else
+  non_free="--enable-nonfree"
+fi
+
+if [ "${AMRWB:-yes}" = "no" ]; then
+  amr_wb=""
+else
+  non_free="--enable-nonfree"
+fi
+
+if [ "${DC1394:-yes}" = "no" ]; then
+  libdc1394=""
+else
+  libdc1394="--enable-libdc1394"
+fi
+
+if [ "${DIRAC:-yes}" = "no" ]; then
+  dirac_slow=""
+else
+  dirac_slow="--enable-libdirac"
+fi
+
+if [ "${FAAC:-yes}" = "yes" ]; then
+  libfaac="--enable-libfaac"
+else
+  libfaac=""
+fi
+
+if [ "${FAAD:-yes}" = "yes" ]; then
+  libfaad="--enable-libfaad"
+else
+  libfaad=""
+fi
+
+if [ "${LAME:-yes}" = "yes" ]; then
+  mp3lame="--enable-libmp3lame"
+else
+  mp3lame=""
+fi
+
+if [ "${JP2:-yes}" = "no" ]; then
+  openjpeg=""
+else
+  openjpeg="--enable-libopenjpeg"
+  SLACKCFLAGS="$SLACKCFLAGS -I/usr/include/openjpeg"
+fi
+
+if [ "${SCHROEDINGER:-yes}" = "no" ]; then
+  dirac_fast=""
+else
+  dirac_fast="--enable-libschroedinger"
+fi
+
+if [ "${SPEEX:-yes}" = "no" ]; then
+  libspeex=""
+else
+  libspeex="--enable-libspeex"
+fi
+
+if [ "${VDPAU:-yes}" = "no" ]; then
+  vdpau_opt="--disable-vdpau"
+else
+  vdpau_opt="--enable-vdpau"
+fi
+
+if [ "${X264:-yes}" = "yes" ]; then
+  libx264="--enable-libx264"
+else
+  libx264=""
+fi
+
+if [ "${XVID:-yes}" = "no" ]; then
+  libxvid=""
+else
+  libxvid="--enable-libxvid"
+fi
+
 CFLAGS="$SLACKCFLAGS" \
 CXXFLAGS="$SLACKCFLAGS" \
 ./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
+  --prefix=/usr \
+  --libdir=/usr/lib${LIBDIRSUFFIX} \
+  --shlibdir=/usr/lib${LIBDIRSUFFIX} \
+  --mandir=/usr/man \
+  --disable-debug \
+  --enable-shared \
+  --disable-static \
+  --enable-pthreads \
+  --enable-libtheora \
+  --enable-gpl \
+  --enable-postproc \
+  --enable-swscale \
+  --enable-x11grab \
+  --enable-avfilter \
+  --enable-avfilter-lavf \
+  $openjpeg \
+  $libdc1394 \
+  $mp3lame \
+  $libfaac \
+  $libfaad \
+  $libxvid \
+  $libx264 \
+  $libspeex \
+  $dirac_slow \
+  $dirac_fast \
+  $vdpau_opt \
+  $non_free \
 || shellout "configure of $PRGNAM-$VERSION failed"
 conclude "./configure finished successfully"
 
@@ -144,44 +237,20 @@ make DESTDIR=$PKG install || shellout "make install failed"
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
 
+## Install the manpages
+( cd $PKG/usr/man
+  find . -type f -exec gzip -9 {} \;
+  for i in $(find . -type l) ; do ln -s $(readlink $i).gz $i.gz ; rm $i ; done
+)
+
 # Installation of slack-desc
 mkdir -p $PKG/install 
-( test -r $CWD/slack-desc && \
-cat $CWD/slack-desc > $PKG/install/slack-desc ) || \
-cat << EODESC > $PKG/install/slack-desc
-# HOW TO EDIT THIS FILE:            
-# The "handy ruler" below makes it easier to edit a package description.  Line
-# up the first '|' above the ':' following the base package name, and the '|' 
-# on the right side marks the last column you can put a character in.  You
-# must
-# make exactly 11 lines for the formatting to be correct.  It's also           
-# customary to leave one space after the ':'.                                  
-
-         |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: 
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
-EODESC
+( test -r $CWD/slack-desc && cat $CWD/slack-desc > $PKG/install/slack-desc )
 
 # Install a doinst.sh, if it exists
 if [ -r $CWD/doinst.sh ]; then
    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
-
-## Install the manpages
-#( cd $PKG/usr/man ;
-#find . -type f -exec gzip -9 {} \;
-#for i in $( find . -type l ) ;do
-        #ln -s $( readlink $i ).gz $i.gz ; rm $i;
-#done )
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION
@@ -193,7 +262,6 @@ do
   fi
 done
 
-mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
 chown -R root:root $PKG/usr/doc/$PRGNAM-$VERSION
 find $PKG/$PREFIX/doc -type f -exec chmod 0644 {} \;

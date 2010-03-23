@@ -29,9 +29,9 @@ PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(hostname)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
+PRGNAM=${PRGNAM:-libupnp}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
+VERSION=${VERSION:-1.6.6}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
@@ -39,7 +39,7 @@ TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
 EXT=${EXT:-tar.bz2}
-URL=${URL:-http://downloads.sourceforge.net/project/${SRCNAM}-${VERSION}.$EXT}
+URL=${URL:-http://sourceforge.net/projects/pupnp/files/pupnp/LibUPnP%201.6.6/$PRGNAM-$VERSION.$EXT/download}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
@@ -104,14 +104,11 @@ mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
 chown -R root:root .
-chmod -R u+w,go+r-w,a-s .
-
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
+find . \
+\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+-exec chmod 755 {} \; -o \
+\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
+-perm 400 \) -exec chmod 644 {} \;
 
 if [ "$ARCH" = "i486" ]; then
   SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -158,17 +155,17 @@ cat << EODESC > $PKG/install/slack-desc
 # customary to leave one space after the ':'.                                  
 
          |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: 
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
+libupnp:                                 ( libupnp ) 
+libupnp:
+libupnp: The portable Universal Plug and Play (UPnP) SDK provides support
+libupnp: for building UPnP-compliant control points, devices, and bridges
+libupnp: on several operating systems.
+libupnp:
+libupnp: 
+libupnp: Homepage: http://pupnp.sourceforge.net/
+libupnp: 
+libupnp: Packager: _PACKAGER on _BUILD_DATE
+libupnp:
 EODESC
 
 # Install a doinst.sh, if it exists
@@ -177,11 +174,12 @@ if [ -r $CWD/doinst.sh ]; then
 fi
 
 ## Install the manpages
-#( cd $PKG/usr/man ;
-#find . -type f -exec gzip -9 {} \;
-#for i in $( find . -type l ) ;do
-        #ln -s $( readlink $i ).gz $i.gz ; rm $i;
-#done )
+( cd $PKG/usr/man ;
+find . -type f -exec gzip -9 {} \;
+for i in $( find . -type l ) ;do
+		ln -s $( readlink $i ).gz $i.gz ; rm $i;
+done )
+##-- finished intall manpages --
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION
