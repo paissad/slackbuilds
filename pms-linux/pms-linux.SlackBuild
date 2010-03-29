@@ -48,8 +48,8 @@ TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
-DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE \
-CHANGELOG ChangeLog HACKING INSTALL MAINTAINERS NEWS ReadMe README \
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* License* \
+CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS ReadMe* README* \
 THANKS TODO RELEASE UPGRADING FAQ HELP"}
 
 set -e
@@ -162,31 +162,33 @@ cd $TMP/$PRGNAM-$VERSION
 ant || shellout "Running of ant failed."
 ( cd $TMP/$PRGNAM-$VERSION/dist; tar xf *tgz; )
 
-mkdir -p $PKG/usr/bin
 mkdir -p $PKG/etc/{rc.d,logrotate.d}
-mkdir -p $PKG/usr/{man/man1,pixmaps,applications,$PRGNAM}
+mkdir -p $PKG/usr/{bin,man/man1}
+mkdir -p $PKG/usr/share/{$PRGNAM,pixmaps,applications}
 mkdir -p $PKG/var/log/pms-linux
-chmod -cR 1777 $PKG/var/log/pms-linux || exit 1
+chmod -R 1777 $PKG/var/log/pms-linux || exit 1
 
-( cd $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-$SVN_VERSION; 
+cd $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-$SVN_VERSION
 cp -a renderers/ \
-	  plugins/ \
-	  linux/ \
-	  dist-archive/ \
-	  pms.jar \
-	  $PKG/usr/share/$PRGNAM \
-	  || shellout "Copying files to /usr/share/$PRGNAM"
+plugins/ \
+linux/ \
+dist-archive/ \
+pms.jar \
+$PKG/usr/share/$PRGNAM \
+|| shellout "Copying files to /usr/share/$PRGNAM"
 cat $TMP/$PRGNAM-$VERSION/PMS.conf > $PKG/etc/PMS.conf.new || exit 1
 cat $TMP/$PRGNAM-$VERSION/WEB.conf > $PKG/etc/WEB.conf.new || exit 1
+
 chmod 0755 $PKG/usr/share/$PRGNAM/linux/tsMuxeR || exit 1
-) 
 
 install -m 0755 -D $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-$SVN_VERSION/pms-linux \
 $PKG/usr/bin || exit 1
+
 install -m 0755 $CWD/rc.pms-linux $PKG/etc/rc.d/rc.pms-linux.new || exit 1
 install -m 0644 $CWD/pms-linux.logrotate $PKG/etc/logrotate.d/pms-linux.new || exit 1
 install -m 0644 -D $CWD/pms-linux.xpm $PKG/usr/share/pixmaps  || exit 1
 install -m 0644 -D $CWD/pms-linux.desktop $PKG/usr/share/applications  || exit 1
+
 ## Install the manpage
 install -m 0644 -D $CWD/pms-linux.1 $PKG/usr/man/man1/ || exit 1
 gzip -9 $PKG/usr/man/man1/pms-linux.1  || exit 1
