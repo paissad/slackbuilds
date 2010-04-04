@@ -1,0 +1,4 @@
+In order to enable mod_ruby.conf, you must add this line to your httpd.conf file
+
+Include /etc/httpd/mod_ruby.conf
+

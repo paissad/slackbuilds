@@ -31,7 +31,9 @@ DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
+SVN_URL=${SVN_URL:-}
+SVN_REVISION=${SVN_REVISION:-"$(svn log -qr HEAD $SVN_URL | sed -n 's/^r\([0-9]\{1,\}\).*/\1/p')"}
+VERSION=${VERSION:-r$SVN_REVISION}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
@@ -39,13 +41,12 @@ TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
 EXT=${EXT:-tar.bz2}
-URL=${URL:-http://downloads.sourceforge.net/project/${SRCNAM}-${VERSION}.$EXT}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
 DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
-CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
+CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
 ReadMe* README* THANKS TODO Todo RELEASE UPGRADING FAQ HELP*"}
 
 set -e
@@ -84,11 +85,28 @@ warnout(){
     echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
 }
 
+# Determine the tarball extension:
+case "$EXT" in
+    "tar.xz") TARCOMP="J" ;;
+    "tar.gz") TARCOMP="z" ;;
+    "tgz") TARCOMP="z" ;;
+    "tar.bz2") TARCOMP="j" ;;
+    *) echo "Archive can only have extension 'tar.xz', '.tar.gz' '.tar.bz2' or '.tgz'" ; 
+    exit 1 ;;
+esac
+
 # Download of the source !
 if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
-    introduce "Start downloading ${SRCNAM}-${VERSION}.$EXT" 
-    wget "$URL" || shellout "Downloading ${SRCNAM}-${VERSION}.$EXT"
-    conclude "Download of ${SRCNAM}-${VERSION}.$EXT finished successfully !"
+    introduce "Start downloading ${SRCNAM} at revision $SVN_REVISION" 
+    svn export -r $SVN_REVISION $SVN_URL $PRGNAM-$VERSION  \
+  || shellout "Downloading ${SRCNAM}"
+    conclude "Download of ${SRCNAM} at revision $SVN_REVISION finished successfully !"
+
+  introduce "Compressing source ..."
+    tar -${TARCOMP}cvf $PRGNAM-$VERSION.$EXT $PRGNAM-$VERSION \
+    || shellout "Compressing source failed."
+    conclude "Compressing source finished successfully."
+    conclude "The file is $SRCNAM-$VERSION.$EXT" 
 fi
 
 rm -rf $PKG

@@ -21,7 +21,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Requirements:
-# Suggests:
+# Suggests: rake, rubygems
 
 time_start_script=$(date +%s)
 
@@ -29,23 +29,24 @@ PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(hostname)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
+PRGNAM=${PRGNAM:-redmine}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
-ARCH=${ARCH:-$(uname -m)}
+SVN_URL=${SVN_URL:-http://redmine.rubyforge.org/svn/trunk}
+SVN_REVISION=${SVN_REVISION:-"$(svn log -qr HEAD $SVN_URL | sed -n 's/^r\([0-9]\{1,\}\).*/\1/p')"}
+VERSION=${VERSION:-r$SVN_REVISION}
+ARCH=${ARCH:-noarch}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
 EXT=${EXT:-tar.bz2}
-URL=${URL:-http://downloads.sourceforge.net/project/${SRCNAM}-${VERSION}.$EXT}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
-PREFIX=${PREFIX:-"/usr"}
+RAILS_ROOT=${RAILS_ROOT:-/var/www/htdocs}
 NUMJOBS=${NUMJOBS:-}
 DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
-CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
+CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
 ReadMe* README* THANKS TODO Todo RELEASE UPGRADING FAQ HELP*"}
 
 set -e
@@ -84,11 +85,28 @@ warnout(){
     echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
 }
 
+# Determine the tarball extension:
+case "$EXT" in
+    "tar.xz") TARCOMP="J" ;;
+    "tar.gz") TARCOMP="z" ;;
+    "tgz") TARCOMP="z" ;;
+    "tar.bz2") TARCOMP="j" ;;
+    *) echo "Archive can only have extension 'tar.xz', '.tar.gz' '.tar.bz2' or '.tgz'" ; 
+    exit 1 ;;
+esac
+
 # Download of the source !
 if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
-    introduce "Start downloading ${SRCNAM}-${VERSION}.$EXT" 
-    wget "$URL" || shellout "Downloading ${SRCNAM}-${VERSION}.$EXT"
-    conclude "Download of ${SRCNAM}-${VERSION}.$EXT finished successfully !"
+    introduce "Start downloading ${SRCNAM} at revision $SVN_REVISION" 
+    svn export -r $SVN_REVISION $SVN_URL $PRGNAM-$VERSION  \
+  || shellout "Downloading ${SRCNAM}"
+    conclude "Download of ${SRCNAM} at revision $SVN_REVISION finished successfully !"
+
+  introduce "Compressing source ..."
+    tar -${TARCOMP}cvf $PRGNAM-$VERSION.$EXT $PRGNAM-$VERSION \
+    || shellout "Compressing source failed."
+    conclude "Compressing source finished successfully."
+    conclude "The file is $SRCNAM-$VERSION.$EXT" 
 fi
 
 rm -rf $PKG
@@ -103,47 +121,28 @@ test -d $PRGNAM-$VERSION || \
 mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
+# Bail if user or group isn't valid on your system
+if ! grep ^redmine: /etc/passwd 2>&1 > /dev/null; then
+    cat << EOF
+    You must have a redmine user to run this script
+
+    # groupadd -g 303 redmine
+    # useradd -u 303 -d /dev/null -s /bin/false -g redmine redmine
+
+EOF
+    exit
+fi
+
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
+mkdir -p $PKG/$RAILS_ROOT
+cp -a $TMP/$PRGNAM-$VERSION/ $PKG/$RAILS_ROOT/$PRGNAM
+mv $PKG/$RAILS_ROOT/$PRGNAM/config/database.yml.example $PKG/$RAILS_ROOT/$PRGNAM/config/database.yml.new
+mv $PKG/$RAILS_ROOT/$PRGNAM/config/email.yml.example $PKG/$RAILS_ROOT/$PRGNAM/config/email.yml.new
 
-if [ "$ARCH" = "i486" ]; then
-  SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
-elif [ "$ARCH" = "i686" ]; then
-  SLACKCFLAGS="-O2 -march=i686 -mtune=i686"
-elif [ "$ARCH" = "x86_64" ]; then
-  SLACKCFLAGS="-O2 -fPIC"
-  LIBDIRSUFFIX="64"
-  NUMJOBS=2
-fi
-
-CFLAGS="$SLACKCFLAGS" \
-CXXFLAGS="$SLACKCFLAGS" \
-./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
-|| shellout "configure of $PRGNAM-$VERSION failed"
-conclude "./configure finished successfully"
-
-introduce "Running make"
-make -j${NUMJOBS} || shellout "make failed." 
-introduce "Running make install"
-make DESTDIR=$PKG install || shellout "make install failed"
-
-# strip binaries
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-| cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+chown -R redmine:redmine $PKG/$RAILS_ROOT/$PRGNAM/{files,log,tmp}
+chmod -R 755 $PKG/$RAILS_ROOT/$PRGNAM/{files,log,tmp}
 
 # Installation of slack-desc
 mkdir -p $PKG/install 
@@ -159,17 +158,17 @@ cat << EODESC > $PKG/install/slack-desc
 # customary to leave one space after the ':'.                                  
 
          |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: 
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
+redmine:                                 ( redmine ) 
+redmine:
+redmine: Redmine is a flexible project management web application.
+redmine: Written using Ruby on Rails framework, it is cross-platform and
+redmine: cross-database.
+redmine: 
+redmine: 
+redmine: Homepage: http://www.redmine.org
+redmine: 
+redmine: Packager: _PACKAGER on _BUILD_DATE
+redmine:
 EODESC
 
 # Install a doinst.sh, if it exists
@@ -177,19 +176,19 @@ if [ -r $CWD/doinst.sh ]; then
    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
 
-## Install the manpages
-if [ -d $PKG/usr/man ]; then
-    cd $PKG/usr/man ;
-    find . -type f -exec gzip -9 {} \;
-    for i in $( find . -type l ) ;do
-        ln -s $( readlink $i ).gz $i.gz ; rm $i;
-    done
-fi
+# Let's remove the 1st & last / of the $RAILS_ROOT variable
+RAILS_ROOT=$( echo $RAILS_ROOT | sed -e "s,^/,," -e "s,/$,,")
+
+# add .new files to doinst.sh file
+echo "config $RAILS_ROOT/$PRGNAM/config/database.yml.new" >> $PKG/install/doinst.sh
+echo "config $RAILS_ROOT/$PRGNAM/config/email.yml.new" >> $PKG/install/doinst.sh
+echo -e "\nrm -rf $RAILS_ROOT/tmp/cache/*" >> $PKG/install/doinst.sh
 
 # Install the documentation
+PREFIX=usr
 cd $TMP/$PRGNAM-$VERSION
 mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$VERSION
-for i in $DOCS ;
+for i in $DOCS doc/* ;
 do 
   if [ -r $i ]; then
     install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
