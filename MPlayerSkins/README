@@ -1,0 +1,10 @@
+This slackbuild download and builds all available mplayer skins in http://mplayerhq.hu
+
+You may wan to edit the value of the variable DEFSKIN to change to default skin. 
+By default, we have:
+DEFSKIN=${DEFSKIN:-iTunes}  ## Default skin for mplayer
+
+After you obtain all packages of all skins (you install the default skin you choosed 
+and any other Mplayer skin you want ...)
+
+Enjoy !
