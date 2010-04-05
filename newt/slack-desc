@@ -1,0 +1,19 @@
+# HOW TO EDIT THIS FILE:
+# The "handy ruler" below makes it easier to edit a package description.  Line
+# up the first '|' above the ':' following the base package name, and the '|'
+# on the right side marks the last column you can put a character in.  You must
+# make exactly 11 lines for the formatting to be correct.  It's also
+# customary to leave one space after the ':'.
+
+    |-----handy-ruler------------------------------------------------------|
+newt: newt (semi-graphical interface development kit)
+newt:
+newt: Newt is a programming library for color text mode, widget based user
+newt: interfaces.  Newt can be used to add stacked windows, entry widgets,
+newt: checkboxes, radio buttons, labels, plain text fields, scrollbars,
+newt: etc., to text mode user interfaces.  This package also contains the
+newt: shared library needed by programs built with newt, as well as a
+newt: /usr/bin/dialog replacement called whiptail.  Newt is based on the
+newt: slang library.
+newt:
+newt: newt is a dependancy to PartImage: at http://partimage.org/

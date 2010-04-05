@@ -1,0 +1,11 @@
+--- newt-0.52.2/Makefile.in	2006-10-31 21:57:01.000000000 +0200
++++ newt-0.52.2/Makefile.in.new	2006-10-31 22:08:26.000000000 +0200
+@@ -52,7 +52,7 @@
+ 	$(MAKE) -C po stamp-po
+ 
+ test:	$(TESTOBJS) $(LIBNEWT)
+-	$(CC) -g -o test $(TESTOBJS) $(LIBNEWT) $(LIBS) -static
++	$(CC) -g -o test $(TESTOBJS) $(LIBNEWT) $(LIBS)
+ 
+ testgrid:	testgrid.o $(LIBNEWT)
+ 	$(CC) -g -o testgrid testgrid.o $(LIBNEWT) $(LIBS)
