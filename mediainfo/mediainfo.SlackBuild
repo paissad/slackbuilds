@@ -1,0 +1,282 @@
+#!/bin/bash
+
+# Copyright 2010, Papa Issa DIAKHATE (paissad), Montpellier, FRANCE. 
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Requirements :p7zip
+# Suggests:
+
+time_start_script=$(date +%s)
+
+PACKAGER_ID=${PACKAGER_ID:-$USER}
+PACKAGER=${PACKAGER:-$USER@$(cat /etc/HOSTNAME)}
+DATE=$(LC_ALL=C date +%d-%b-%Y)
+
+PRGNAM=${PRGNAM:-mediainfo}
+SRCNAM=${SRCNAM:-$PRGNAM}
+VERSION=${VERSION:-0.7.30}
+ARCH=${ARCH:-$(uname -m)}
+BUILD=${BUILD:-1}
+CWD=${CWD:-`pwd`}
+TMP=${TMP:-/tmp/SBp}
+PKG=${PKG:-$TMP/package-$PRGNAM}
+OUTPUT=${OUTPUT:-/tmp}
+EXT=${EXT:-7z}
+SOURCE=${SRCNAM}_${VERSION}_AllInclusive.$EXT
+URL=${URL:-http://sourceforge.net/projects/mediainfo/files/source/mediainfo/$VERSION/$SOURCE/download}
+TAG=${TAG:-_paissad}
+PKGTYPE=${PKGTYPE:-tgz}
+PREFIX=${PREFIX:-"/usr"}
+NUMJOBS=${NUMJOBS:-}
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
+CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
+ReadMe* README* THANKS TODO Todo RELEASE* UPGRADING* FAQ Faq HELP* BUGS*"}
+
+set -e
+
+txtred=$'\e[0;31m' # Red
+txtgrn=$'\e[0;32m' # Green
+txtylw=$'\e[0;33m' # Yellow
+txtblu=$'\e[0;34m' # Blue
+txtpur=$'\e[0;35m' # Purple
+txtcyn=$'\e[0;36m' # Cyan
+txtrst=$'\e[0m'    # Text Reset
+
+frame()
+{
+    WIDTH=78
+    STARS="++----------------------------------------------------------------------------+"
+    SPACES="                                                                               "
+    printf "%s\n" "${STARS:1:$WIDTH}"
+    while read line ; do
+        HALF="${SPACES:1:$((($WIDTH-${#line})/2))}"
+        LINE="$HALF$line$SPACES"
+        printf "+%s+\n" "${LINE:1:$(($WIDTH-2))}"
+    done
+    printf "%s\n" "${STARS:1:$WIDTH}"
+}
+introduce(){
+    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst \c "; sleep 2;
+}
+conclude(){
+    echo -e "${txtgrn}\n# $1 \n${txtrst}"; sleep 2;
+}
+shellout(){
+    echo -e "${txtred}Error:${txtrst} $1 ${txtcyn}(exit status -> $?)${txtrst}"; exit 1;
+}
+warnout(){
+    echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
+}
+
+# Download of the source !
+if [ ! -r $SOURCE ]; then
+    introduce "Start downloading $SOURCE" 
+    wget "$URL" || shellout "Downloading $SOURCE"
+    conclude "Download of $SOURCE finished successfully !"
+fi
+
+rm -rf $PKG
+mkdir -p $TMP $PKG $OUTPUT
+cd $TMP || exit 1
+rm -rf $PRGNAM-$VERSION
+(
+mkdir mediainfo-$VERSION;
+cd mediainfo-$VERSION;
+p7zip -d $CWD/$SOURCE \
+|| shellout "Extracting $SOURCE";
+)
+
+introduce "Start SlackBuild $PRGNAM-$VERSION"
+test -d $PRGNAM-$VERSION || \
+mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
+cd $TMP/$PRGNAM-$VERSION
+
+chown -R root:root .
+chmod -R u+w,go+r-w,a-s .
+
+if [ "$ARCH" = "i486" ]; then
+  SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
+elif [ "$ARCH" = "i686" ]; then
+  SLACKCFLAGS="-O2 -march=i686 -mtune=i686"
+elif [ "$ARCH" = "x86_64" ]; then
+  SLACKCFLAGS="-O2 -fPIC"
+  LIBDIRSUFFIX="64"
+  NUMJOBS=2
+fi
+
+# ===========================================================================
+# === LIBZEN                                                        =========
+# ===========================================================================
+# Let's build libzen (no install),required for building the following stuffs
+cd $TMP/$PRGNAM-$VERSION/ZenLib/Project/GNU/Library
+sh autogen || shellout "autogen for libzen failed"
+CFLAGS="$SLACKCFLAGS" \
+CXXFLAGS="$SLACKCFLAGS" \
+./configure \
+--enable-shared \
+--prefix=$PREFIX \
+--libdir=$PREFIX/lib${LIBDIRSUFFIX} \
+--build=$ARCH-slackware-linux \
+|| shellout "configure of $PRGNAM-$VERSION for libzen failed"
+make -j$NUMJOBS || shellout "make for libzen failed"
+make DESTDIR=$PKG install || shellout "make install for libzen failed"
+
+# ===========================================================================
+# === MEDIAINFOLIB                                                  =========
+# ===========================================================================
+# Let's build libmediainfo
+cd $TMP/$PRGNAM-$VERSION/MediaInfoLib/Project/GNU/Library
+sh autogen || shellout "autogen for mediainfolib failed"
+CFLAGS="$SLACKCFLAGS" \
+CXXFLAGS="$SLACKCFLAGS" \
+./configure \
+--enable-shared \
+--enable-visibility \
+--prefix=$PREFIX \
+--libdir=$PREFIX/lib${LIBDIRSUFFIX} \
+--build=$ARCH-slackware-linux \
+|| shellout "configure of $PRGNAM-$VERSION for mediainfolib failed"
+make -j$NUMJOBS || shellout "make for mediainfolib failed"
+make DESTDIR=$PKG install || shellout "make install for mediainfolib failed"
+
+# ===========================================================================
+# === MEDIAINFO_CLI                                                 =========
+# ===========================================================================
+# Let's configure & build 1st the mediainfo-CLI
+cd $TMP/$PRGNAM-$VERSION/MediaInfo/Project/GNU/CLI
+sh autogen || shellout "autogen for mediainfo-CLI failed"
+
+CFLAGS="$SLACKCFLAGS" \
+CXXFLAGS="$SLACKCFLAGS" \
+./configure \
+--prefix=$PREFIX \
+--libdir=$PREFIX/lib${LIBDIRSUFFIX} \
+--sysconfdir=/etc \
+--localstatedir=/var \
+--mandir=$PREFIX/man \
+--docdir=$PREFIX/doc/$PRGNAM-$VERSION \
+--build=$ARCH-slackware-linux \
+|| shellout "configure of $PRGNAM-$VERSION for CLI failed"
+
+make -j${NUMJOBS} || shellout "make for mediainfo_CLI failed." 
+make DESTDIR=$PKG install || shellout "make install for mediainfo_CLI failed"
+
+# Finally,let's configure & build the mediainfo-GUI
+cd $TMP/$PRGNAM-$VERSION/MediaInfo/Project/GNU/GUI
+sh autogen || shellout "autogen for mediainfo-GUI failed"
+
+CFLAGS="$SLACKCFLAGS" \
+CXXFLAGS="$SLACKCFLAGS" \
+./configure \
+--enable-shared \
+--prefix=$PREFIX \
+--libdir=$PREFIX/lib${LIBDIRSUFFIX} \
+--sysconfdir=/etc \
+--localstatedir=/var \
+--mandir=$PREFIX/man \
+--docdir=$PREFIX/doc/$PRGNAM-$VERSION \
+--build=$ARCH-slackware-linux \
+|| shellout "configure of $PRGNAM-$VERSION for GUI failed"
+
+make -j${NUMJOBS} || shellout "make failed." 
+make DESTDIR=$PKG install || shellout "make install failed"
+
+# strip binaries
+find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
+| cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+
+# Installation of slack-desc
+mkdir -p $PKG/install 
+( test -r $CWD/slack-desc && \
+cat $CWD/slack-desc > $PKG/install/slack-desc ) || \
+cat << EODESC > $PKG/install/slack-desc
+# HOW TO EDIT THIS FILE:            
+# The "handy ruler" below makes it easier to edit a package description.  Line
+# up the first '|' above the ':' following the base package name, and the '|' 
+# on the right side marks the last column you can put a character in.  You
+# must
+# make exactly 11 lines for the formatting to be correct.  It's also           
+# customary to leave one space after the ':'.                                  
+
+         |-----handy-ruler----------------------------------------------------|
+mediainfo:                                 ( mediainfo ) 
+mediainfo:
+mediainfo: MediaInfo supplies technical and tag information about a video or
+mediainfo: audio file.
+mediainfo: 
+mediainfo:
+mediainfo: 
+mediainfo: Homepage: http://mediainfo.sourceforge.net/
+mediainfo: 
+mediainfo: Packager: _PACKAGER on _BUILD_DATE
+mediainfo:
+EODESC
+
+# Install a doinst.sh, if it exists
+if [ -r $CWD/doinst.sh ]; then
+   cat $CWD/doinst.sh > $PKG/install/doinst.sh
+fi
+
+## Install the manpages
+if [ -d $PKG/usr/man ]; then
+    cd $PKG/usr/man ;
+    find . -type f -exec gzip -9 {} \;
+    for i in $( find . -type l ) ;do
+        ln -s $( readlink $i ).gz $i.gz ; rm $i;
+    done
+fi
+
+# Install the documentation
+cd $TMP/$PRGNAM-$VERSION
+mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+for i in $DOCS ;
+do 
+  if [ -r $i ]; then
+    install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+  fi
+done
+
+mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+chown -R root:root $PKG/usr/doc/$PRGNAM-$VERSION
+find $PKG/$PREFIX/doc -type f -exec chmod 0644 {} \;
+
+# We change the default values in the slack-desc 
+sed -i "s|_PACKAGER|${PACKAGER}|g; s|_BUILD_DATE|${DATE}|g" \
+${PKG}/install/slack-desc || true
+
+cd $PKG 
+introduce "Running makepkg ..."
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
+|| shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"
+
+time_end=$(date +%s)
+elapsed_time_script=`expr $time_end - $time_start_script`
+#Convert seconds to h:m:s format
+_hms(){
+  local S=${1}
+  ((h=S/3600))
+  ((m=S%3600/60))
+  ((s=S%60))
+  printf "%dh:%dm:%ds\n" $h $m $s
+}
+conclude "The script has been running during $(_hms $elapsed_time_script)"
+conclude "Done ..."
+
