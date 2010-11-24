@@ -1,0 +1,17 @@
+Dependancies:
+
+Perl Module:
+Time::HiRes
+MIME::QuotedPrint
+Net::Pcap
+
+----
+Don't forget to add /etc/rc.d/rc.floodmon to your /etc/rc.d/rc.local so that 
+you can start floodmon at machine startup.
+Do something like this
+
+# Start floodmon server
+if [ -x /etc/rc.d/rc.floodmon ]; then
+	/etc/rc.d/rc.floodmon start
+fi
+

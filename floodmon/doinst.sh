@@ -11,3 +11,8 @@ config() {
     # Otherwise, we leave the .new copy for the admin to consider...
 }
 
+config etc/floodmon.conf.new
+config etc/rc.d/rc.floodmon.new
+config etc/munin/plugins/floodmon-munin.new
+
+

@@ -11,3 +11,13 @@ config() {
     # Otherwise, we leave the .new copy for the admin to consider...
 }
 
+if [ -x /usr/bin/update-desktop-database ]; then
+    chroot . /usr/bin/update-desktop-database -q usr/share/applications
+fi
+
+if [ -e usr/share/icons/hicolor/icon-theme.cache ]; then
+    if [ -x usr/bin/gtk-update-icon-cache ]; then
+        chroot . /usr/bin/gtk-update-icon-cache usr/share/icons/hicolor >/dev/null 2>&1
+    fi
+fi
+

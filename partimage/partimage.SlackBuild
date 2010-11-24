@@ -32,6 +32,7 @@ DATE=$(LC_ALL=C date +%d-%b-%Y)
 PRGNAM=${PRGNAM:-partimage}
 SRCNAM=${SRCNAM:-$PRGNAM}
 VERSION=${VERSION:-0.6.8}
+MAKE_CERT=${MAKE_CERT:-yes} # create certificates (make certificates)
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
@@ -91,6 +92,20 @@ if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
     conclude "Download of ${SRCNAM}-${VERSION}.$EXT finished successfully !"
 fi
 
+# Bail if user or group isn't valid on your system
+if ! grep ^partimag: /etc/passwd 2>&1 > /dev/null; then
+
+cat << EOF
+
+  You must have a partimag user to run this script
+
+  # groupadd -g 304 partimag
+  # useradd -u 304 -d /dev/null -s /bin/false -g partimag partimag
+
+EOF
+  exit
+fi
+
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP || exit 1
@@ -131,7 +146,14 @@ make -j${NUMJOBS} || shellout "make failed."
 introduce "Running make install"
 make DESTDIR=$PKG install || shellout "make install failed"
 
+if [ $MAKE_CERT = "yes" ]; then
+    make certificates DESTDIR=$PKG || shellout "make certificates failed."
+    mv $PKG/etc/partimaged/partimaged.cert{,.new}
+    mv $PKG/etc/partimaged/partimaged.key{,.new}
+fi
 mv $PKG/etc/partimaged/partimagedusers{,.new}
+mkdir -p $PKG/etc/rc.d/
+install -m 755 $CWD/rc.partimaged $PKG/etc/rc.d/rc.partimaged.new
 
 # Strip binaries
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
@@ -151,25 +173,33 @@ cat << EODESC > $PKG/install/slack-desc
 # customary to leave one space after the ':'.                                  
 
          |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM: Partimage is an opensource disk backup software software for linux.
-$PRGNAM: It saves partitions having a supported filesystem to an image file. 
-$PRGNAM: Most Linux and Windows filesystems are supported.
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: http://www.partimage.org
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
+partimage:                                 ( partimage ) 
+partimage:
+partimage: Partimage is an opensource disk backup software software for linux.
+partimage: It saves partitions having a supported filesystem to an image file. 
+partimage: Most Linux and Windows filesystems are supported.
+partimage:
+partimage: 
+partimage: Homepage: http://www.partimage.org
+partimage: 
+partimage: Packager: _PACKAGER on _BUILD_DATE
+partimage:
 EODESC
 
 # Install a doinst.sh, if it exists
 if [ -r $CWD/doinst.sh ]; then
    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
+# Add .new files 
+for i in $PKG/etc/partimaged/*.new ; do
+    echo "config etc/partimaged/`basename $i`" >> $PKG/install/doinst.sh
+done
+echo "config etc/rc.d/rc.partimaged.new" >> $PKG/install/doinst.sh
 
 ## Install the manpages
+for i in $(find $CWD/man -type f); do
+    cat $i | gzip -f9 > lol_$(basename
+    $i).gz ; done
 if [ -d $PKG/usr/man ]; then
     cd $PKG/usr/man ;
     find . -type f -exec gzip -9 {} \;

@@ -20,16 +20,66 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+time_start_script=$(date +%s)
+
 PRGNAM="dovecot"
+SRCNAM=${SRCNAM:-$PRGNAM}
 VERSION="1.1.15"
 ARCH=${ARCH:-$(uname -m)}
-BUILD=${BUILD:-2}
+BUILD=${BUILD:-3}
 TAG=${TAG:-_paissad}
+
+EXT=${EXT:-tar.gz}
+SOURCE=${SRCNAM}-${VERSION}.$EXT
+URL=${URL:-http://www.dovecot.org/releases/1.1/$SOURCE}
 
 CWD=$(pwd)
 TMP=${TMP:-/tmp/SBp}
 PKG="$TMP/package-$PRGNAM"
 OUTPUT=${OUTPUT:-/tmp}
+
+set -e
+
+txtred=$'\e[0;31m' # Red
+txtgrn=$'\e[0;32m' # Green
+txtylw=$'\e[0;33m' # Yellow
+txtblu=$'\e[0;34m' # Blue
+txtpur=$'\e[0;35m' # Purple
+txtcyn=$'\e[0;36m' # Cyan
+txtrst=$'\e[0m'    # Text Reset
+
+frame()
+{
+    WIDTH=78
+    STARS="++----------------------------------------------------------------------------+"
+    SPACES="                                                                               "
+    printf "%s\n" "${STARS:1:$WIDTH}"
+    while read line ; do
+        HALF="${SPACES:1:$((($WIDTH-${#line})/2))}"
+        LINE="$HALF$line$SPACES"
+        printf "+%s+\n" "${LINE:1:$(($WIDTH-2))}"
+    done
+    printf "%s\n" "${STARS:1:$WIDTH}"
+}
+introduce(){
+    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst \c "; sleep 2;
+}
+conclude(){
+    echo -e "${txtgrn}\n# $1 \n${txtrst}"; sleep 2;
+}
+shellout(){
+    echo -e "${txtred}Error:${txtrst} $1 ${txtcyn}(exit status -> $?)${txtrst}"; exit 1;
+}
+warnout(){
+    echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
+}
+
+# Download of the source !
+if [ ! -r $SOURCE ]; then
+    introduce "Start downloading $SOURCE" 
+    wget "$URL" || shellout "Downloading $SOURCE"
+    conclude "Download of $SOURCE finished successfully !"
+fi
 
 # Bail if user isn't valid on your system
 if ! grep -q ^dovecot: /etc/passwd ; then
@@ -39,8 +89,6 @@ if ! grep -q ^dovecot: /etc/passwd ; then
   echo "  Or something similar."
   exit 1
 fi
-
-set -e
 
 if [ "$ARCH" = "i486" ]; then
   SLKCFLAGS="-O2 -march=i486 -mtune=i686"
@@ -106,3 +154,17 @@ cat $CWD/doinst.sh > $PKG/install/doinst.sh
 
 cd $PKG
 /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.${PKGTYPE:-tgz}
+
+time_end=$(date +%s)
+elapsed_time_script=`expr $time_end - $time_start_script`
+#Convert seconds to h:m:s format
+_hms(){
+  local S=${1}
+  ((h=S/3600))
+  ((m=S%3600/60))
+  ((s=S%60))
+  printf "%dh:%dm:%ds\n" $h $m $s
+}
+conclude "The script has been running during $(_hms $elapsed_time_script)"
+conclude "Done ..."
+

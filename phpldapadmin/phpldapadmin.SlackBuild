@@ -29,18 +29,21 @@ PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(cat /etc/HOSTNAME)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
+PRGNAM=${PRGNAM:-phpldapadmin}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
-ARCH=${ARCH:-$(uname -m)}
+VERSION=${VERSION:-1.2.0.5}
+APACHE_USER=${APACHE_USER:-apache}
+APACHE_GRP=${APACHE_GRP:-apache}
+DOCROOT=${DOCROOT:-/var/www/htdocs}
+ARCH=${ARCH:-noarch}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
-EXT=${EXT:-tar.bz2}
+EXT=${EXT:-tgz}
 SOURCE=${SRCNAM}-${VERSION}.$EXT
-URL=${URL:-http://downloads.sourceforge.net/project/$SOURCE}
+URL=${URL:-http://sourceforge.net/projects/phpldapadmin/files/phpldapadmin-php5/$VERSION/$SOURCE}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
@@ -104,48 +107,12 @@ test -d $PRGNAM-$VERSION || \
 mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
-chown -R root:root .
-chmod -R u+w,go+r-w,a-s .
+chown -R $APACHE_USER:$APACHE_GRP .
+mv config/config.php.example config/config.php.new || exit 1
 
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
-
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i486 -mtune=i686"
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i686 -mtune=i686"
-elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -fPIC"
-  LIBDIRSUFFIX="64"
-  NUMJOBS=2
-fi
-
-introduce "Running configure"
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
-|| shellout "configure of $PRGNAM-$VERSION failed"
-conclude "./configure finished successfully"
-
-introduce "Running make"
-make -j${NUMJOBS} || shellout "make failed." 
-introduce "Running make install"
-make DESTDIR=$PKG install || shellout "make install failed"
-
-# strip binaries
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-| cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+mkdir -p ${PKG}/${DOCROOT}
+cp -a $TMP/$PRGNAM-$VERSION ${PKG}/${DOCROOT}/phpldapadmin \
+|| shellout "Copying files failed."
 
 # Installation of slack-desc
 mkdir -p $PKG/install 
@@ -160,18 +127,18 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: 
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
+            |-----handy-ruler----------------------------------------------------|
+phpldapadmin:                                 ( phpldapadmin ) 
+phpldapadmin:
+phpldapadmin: phpLDAPadmin is a web-based LDAP administration tool for
+phpldapadmin: managing your LDAP server. With it you can browse your LDAP tree, 
+phpldapadmin: view LDAP schema, perform searches, create, delete, copy and edit 
+phpldapadmin: LDAP entries. You can even copy entries between servers.
+phpldapadmin: 
+phpldapadmin: Homepage: phpldapadmin.sourceforge.net
+phpldapadmin: 
+phpldapadmin: Packager: _PACKAGER on _BUILD_DATE
+phpldapadmin:
 EODESC
 
 # Install a doinst.sh, if it exists
@@ -179,14 +146,13 @@ if [ -r $CWD/doinst.sh ]; then
    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
 
-## Install the manpages
-if [ -d $PKG/usr/man ]; then
-    cd $PKG/usr/man ;
-    find . -type f -exec gzip -9 {} \;
-    for i in $( find . -type l ) ;do
-        ln -s $( readlink $i ).gz $i.gz ; rm $i;
-    done
-fi
+# Let's remove the leading & trailing "/" in the $DOCROOT variable
+DOCROOT=$( echo $DOCROOT | sed -e "s,^/*,," -e "s,/*$,,")
+
+# Let's adapt the doinst.sh
+cat <<EOFDOINST >> $PKG/install/doinst.sh
+config $DOCROOT/phpldapadmin/config/config.php.new
+EOFDOINST
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION

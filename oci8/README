@@ -1,0 +1,6 @@
+You must set $ORACLE_HOME et run the slackbuild like this
+fakeroot ./oci8.SlackBuild
+You'd better run the slackbuild by user 'oracle' if 'oracle' is the
+user created durint Oracle Database installation ...
+
+

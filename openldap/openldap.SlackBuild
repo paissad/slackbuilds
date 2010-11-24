@@ -29,25 +29,26 @@ PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(cat /etc/HOSTNAME)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
+PRGNAM=${PRGNAM:-openldap}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
+VERSION=${VERSION:-2.4.23}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
-EXT=${EXT:-tar.bz2}
+EXT=${EXT:-tgz}
 SOURCE=${SRCNAM}-${VERSION}.$EXT
-URL=${URL:-http://downloads.sourceforge.net/project/$SOURCE}
+URL=${URL:-ftp://ftp.openldap.org/pub/OpenLDAP/openldap-release/$SOURCE}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
 DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
 CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
-ReadMe* README* THANKS TODO Todo RELEASE* UPGRADING* FAQ Faq HELP* BUGS*"}
+ReadMe* README* THANKS TODO Todo RELEASE* UPGRADING* FAQ Faq HELP* BUGS* \
+ANNOUNCEMENT"}
 
 set -e
 
@@ -107,41 +108,82 @@ cd $TMP/$PRGNAM-$VERSION
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
-
 if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i486 -mtune=i686"
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i686 -mtune=i686"
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -fPIC"
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
   NUMJOBS=2
 fi
 
-introduce "Running configure"
+find . -perm 777 -exec chmod 755 {} \;
+find . -perm 664 -exec chmod 644 {} \;
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
+
 ./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
+  --prefix=$PREFIX \
+  --libdir=$PREFIX/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var/lib \
+  --mandir=$PREFIX/man \
+  --docdir=$PREFIX/doc/$PRGNAM-$VERSION \
+  --with-cyrus-sasl \
+  --with-tls \
+  --with-readline \
+  --with-threads \
+  --enable-debug \
+  --enable-syslog \
+  --enable-dynamic \
+  --enable-local \
+  --enable-proctitle \
+  --enable-modules \
+  --disable-static \
+  --enable-shared \
+  --enable-slapd \
+  --enable-slurpd \
+  --enable-cleartext \
+  --enable-crypt \
+  --enable-spasswd \
+  --enable-rlookups \
+  --enable-bdb \
+  --enable-hdb \
+  --enable-ldap \
+  --enable-meta \
+  --enable-monitor \
+  --enable-relay \
+  --enable-sql \
+  --build=$ARCH-slackware-linux \
 || shellout "configure of $PRGNAM-$VERSION failed"
 conclude "./configure finished successfully"
 
-introduce "Running make"
-make -j${NUMJOBS} || shellout "make failed." 
+introduce "Running make depend & make & make test"
+make depend || shellout "make depend failed."
+make -j${NUMJOBS} || shellout "make failed."
+make test || shellout "make test failed."
+
 introduce "Running make install"
 make DESTDIR=$PKG install || shellout "make install failed"
+
+rm -f $PKG/etc/openldap/ldap.conf.default
+rm -f $PKG/etC/openldap/slapd.conf.default
+mv $PKG/etc/openldap/ldap.conf $PKG/etc/openldap/ldap.conf.new
+mv $PKG/etc/openldap/slapd.conf $PKG/etc/openldap/slapd.conf.new
+# Copy init.d script
+mkdir -p $PKG/etc/rc.d/
+cp -v $CWD/rc.slapd $PKG/etc/rc.d/rc.slapd.new
+chmod +x $PKG/etc/rc.d/rc.slapd.new
+
+cat << EOF >> $PKG/etc/openldap/ldap.conf.new
+
+# In order to avoid problems with self-signed certificates using TLS:
+# "TLS certificate verification: Error, self signed certificate"
+# See also 'man ldap.conf' or http://www.openldap.org/doc/admin/tls.html
+TLS_REQCERT allow
+
+EOF
 
 # strip binaries
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \

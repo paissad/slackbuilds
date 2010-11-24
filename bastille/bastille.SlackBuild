@@ -29,10 +29,10 @@ PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(cat /etc/HOSTNAME)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
-SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
-ARCH=${ARCH:-$(uname -m)}
+PRGNAM=${PRGNAM:-bastille}
+SRCNAM=${SRCNAM:-Bastille}
+VERSION=${VERSION:-3.0.9}
+ARCH=${ARCH:-noarch}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
@@ -40,7 +40,7 @@ PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
 EXT=${EXT:-tar.bz2}
 SOURCE=${SRCNAM}-${VERSION}.$EXT
-URL=${URL:-http://downloads.sourceforge.net/project/$SOURCE}
+URL=${URL:-http://sourceforge.net/projects/bastille-linux/files/bastille-linux/$VERSION/$SOURCE}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
@@ -85,6 +85,11 @@ warnout(){
     echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
 }
 
+LIBDIRSUFFIX=""
+if [ $(uname -m) = "x86_64" ]; then
+  LIBDIRSUFFIX="64"
+fi
+
 # Download of the source !
 if [ ! -r $SOURCE ]; then
     introduce "Start downloading $SOURCE" 
@@ -100,6 +105,7 @@ tar xvf $CWD/$SOURCE \
 || shellout "Extracting $SOURCE"
 
 introduce "Start SlackBuild $PRGNAM-$VERSION"
+mv -v $SRCNAM $SRCNAM-$VERSION
 test -d $PRGNAM-$VERSION || \
 mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
@@ -107,45 +113,35 @@ cd $TMP/$PRGNAM-$VERSION
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
+sed -i."bak" \
+-e "s,^umask\s\+.*,umask 0022," \
+-e "s,^RPM_BUILD_ROOT=\"\",PKG=\"$PKG\"," \
+-e "s,\$RPM_BUILD_ROOT,\$PKG,g" \
+-e "s,/usr/lib/,/usr/lib$LIBDIRSUFFIX/,g" \
+Install.sh
 
-if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i486 -mtune=i686"
-elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i686 -mtune=i686"
-elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -fPIC"
-  LIBDIRSUFFIX="64"
-  NUMJOBS=2
-fi
+# Execute the install script
+./Install.sh
 
-introduce "Running configure"
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
-|| shellout "configure of $PRGNAM-$VERSION failed"
-conclude "./configure finished successfully"
+# Set decent perms
+find $PKG/usr/share/Bastille -type f \( \
+-name "*.txt" -o \
+-name "*.js"  -o \
+-name "*jpg"  -o \
+-name "*.xbm" -o \
+-name "*.cfg" -o \
+-name "hosts.allow" -o \
+-name "ifup-local"  -o \
+-name "Credits" \
+\) \
+-exec chmod -x '{}' \;
 
-introduce "Running make"
-make -j${NUMJOBS} || shellout "make failed." 
-introduce "Running make install"
-make DESTDIR=$PKG install || shellout "make install failed"
+find $PKG/usr/share/Bastille/Questions -type f -exec chmod -x '{}' \;
+find $PKG/usr/share/Bastille/OSMap -type f -exec chmod -x '{}' \;
 
-# strip binaries
-find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
-| cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+# Correct symlink
+cd $PKG/usr/sbin
+ln -svf RevertBastille UndoBastille
 
 # Installation of slack-desc
 mkdir -p $PKG/install 
@@ -160,18 +156,18 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: 
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
+        |-----handy-ruler----------------------------------------------------|
+bastille:                                 ( bastille ) 
+bastille:
+bastille: The Bastille Hardening program "locks down" an operating system,
+bastille: proactively configuring the system for increased security and 
+bastille: decreasing its susceptibility to compromise. Bastille can also 
+bastille: assess a system's current state of hardening, granularly reporting
+bastille: on each of the security settings with which it works.
+bastille: Homepage: http://bastille-linux.sourceforge.net
+bastille: 
+bastille: Packager: _PACKAGER on _BUILD_DATE
+bastille:
 EODESC
 
 # Install a doinst.sh, if it exists
@@ -197,6 +193,7 @@ do
     install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
   fi
 done
+cp -a docs/ $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 
 mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild

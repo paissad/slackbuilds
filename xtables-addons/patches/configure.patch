@@ -1,0 +1,18 @@
+# This patch may be useful is you kernel version contains an appended
+# LOCAL_VERSION which begins with - or _ or + or :
+# The default configure file only handle the character '-'
+# After running this patch, that will handle all the specified chars above
+--- configure.orig	2010-11-23 21:52:36.000000000 +0100
++++ configure	2010-11-23 21:52:36.000000000 +0100
+@@ -10812,7 +10812,10 @@
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking kernel version that we will build against" >&5
+ $as_echo_n "checking kernel version that we will build against... " >&6; }
+ krel="$(make -sC ${kbuilddir} kernelrelease)";
+-krel="${krel%%-*}";
++for specific_char in - _ + :
++do
++	krel="${krel%%$specific_char*}";
++done
+ kmajor="${krel%%.*}";
+ krel="${krel#*.}";
+ kminor="${krel%%.*}";

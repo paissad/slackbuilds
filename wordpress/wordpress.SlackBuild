@@ -31,7 +31,7 @@ DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-wordpress}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-2.9.2}
+VERSION=${VERSION:-3.0}
 APACHE_USER=${APACHE_USER:-apache}
 APACHE_GRP=${APACHE_GRP:-apache}
 DOCROOT=${DOCROOT:-/var/www/htdocs}
@@ -107,7 +107,7 @@ mv -v ${SRCNAM} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
 chown -R $APACHE_USER:$APACHE_GRP .
-cp -a wp-config-sample.php wp-config.php.new || exit 1
+mv wp-config-sample.php wp-config.php.new || exit 1
 
 mkdir -p ${PKG}/${DOCROOT}
 cp -a $TMP/$PRGNAM-$VERSION ${PKG}/${DOCROOT}/wordpress \
@@ -146,7 +146,7 @@ if [ -r $CWD/doinst.sh ]; then
 fi
 
 # Let's remove the 1st & last / of the $DOCROOT variable
-DOCROOT=$( echo $DOCROOT | sed -e "s,^/,," -e "s,/$,,")
+DOCROOT=$( echo $DOCROOT | sed -e "s,^/*,," -e "s,/*$,,")
 
 # Let's adapt the doinst.sh
 cat <<EOFDOINST >> $PKG/install/doinst.sh

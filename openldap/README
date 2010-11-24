@@ -1,0 +1,9 @@
+Don't forget to add /etc/rc.d/rc.slapd to your /etc/rc.d/rc.local so that 
+you can start OpenLDAP server at machine startup.
+Do something like this
+
+# Start OpenLDAP server
+if [ -x /etc/rc.d/rc.slapd ]; then
+	/etc/rc.d/rc.slapd start
+fi
+

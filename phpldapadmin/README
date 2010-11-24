@@ -1,0 +1,9 @@
+You may need to set the variables DOCROOT, APACHE_USER and/or APACHE_GRP 
+before running the SlackBuild.
+Default values:
+DOCROOT=/var/www/htdocs
+APACHE_USER=apache
+APACHE_GRP=apache
+
+DOCROOT=/var/www/myhtdocs ./phpladpadmin.SlackBuild
+

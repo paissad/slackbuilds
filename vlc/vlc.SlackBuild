@@ -20,34 +20,33 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Requirements:
+# Requirements: libproxy, libbluray
 # Suggests:
 
 time_start_script=$(date +%s)
 
 PACKAGER_ID=${PACKAGER_ID:-$USER}
-PACKAGER=${PACKAGER:-$USER@$(cat /etc/HOSTNAME)}
+PACKAGER=${PACKAGER:-$USER@$(hostname -f)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
+PRGNAM=${PRGNAM:-vlc}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
+VERSION=${VERSION:-}  # The version will be retreived automatically from the git repository
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
-EXT=${EXT:-tar.bz2}
-SOURCE=${SRCNAM}-${VERSION}.$EXT
-URL=${URL:-http://downloads.sourceforge.net/project/$SOURCE}
+EXT=${EXT:-tar.gz}
+GIT_URL=${GIT_URL:-git://git.videolan.org/vlc.git}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
-DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
-CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
-ReadMe* README* THANKS TODO Todo RELEASE* UPGRADING* FAQ Faq HELP* BUGS*"}
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE LICENSE.txt LICENSE.TXT \
+CHANGELOG ChangeLog CHANGELOG.txt CHANGELOG.TXT HACKING INSTALL INSTALL.txt \
+INSTALL.TXT MAINTAINERS NEWS ReadMe README README.txt THANKS TODO RELEASE UPGRADING FAQ HELP"}
 
 set -e
 
@@ -84,20 +83,63 @@ shellout(){
 warnout(){
     echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
 }
-
+ # Determine the tarball extension:
+ case "$EXT" in
+     "tar.xz") TARCOMP="J" ;;
+     "tar.gz") TARCOMP="z" ;;
+     "tgz") TARCOMP="z" ;;
+     "tar.bz2") TARCOMP="j" ;;
+     *) echo "Archive can only have extension 'tar.xz', '.tar.gz' '.tar.bz2' or '.tgz'" ; 
+     exit 1 ;;
+ esac
+  
 # Download of the source !
-if [ ! -r $SOURCE ]; then
-    introduce "Start downloading $SOURCE" 
-    wget "$URL" || shellout "Downloading $SOURCE"
-    conclude "Download of $SOURCE finished successfully !"
+if [ ! -r ${SRCNAM}-$VERSION.$EXT ]; then
+    introduce "Start downloading ${SRCNAM} from git repository" 
+    git clone $GIT_URL $PRGNAM \
+    || shellout "Downloading ${SRCNAM}"
+    conclude "Download of ${SRCNAM} finished successfully !"
+
+  # Let's get a kind of version
+    cd $CWD/$PRGNAM
+  # Use one of the 2 methods to retreive the VERSION, we never know, maybe
+  # one of them is more efficient ... if ever the file configure.ac changed
+  # I recommend method 2
+  # Just uncomment one of them !
+
+  # (1)
+  #VERSION=$(sed -ne 's/^AC_INIT(.*,\s*\(.*\))/\1/p' configure.ac | tr '-' '.')
+
+  # (2)
+  version_major=$(sed -ne 's/^VERSION_MAJOR=\"*\([^\"]*\)\"*/\1/p' configure.ac)
+  version_minor=$(sed -ne 's/^VERSION_MINOR=\"*\([^\"]*\)\"*/\1/p' configure.ac)
+  version_revision=$(sed -ne 's/^VERSION_REVISION=\"*\([^\"]*\)\"*/\1/p' configure.ac)
+  #version_extra=$(sed -ne 's/^VERSION_EXTRA=\"*\([^\"]*\)\"*/\1/p' configure.ac | tr '-' '.')
+  #VERSION=${version_major}.${version_minor}.${version_revision}${version_extra}
+  VERSION=${version_major}.${version_minor}.${version_revision}
+
+  LOCAL_VERSION=`git rev-list HEAD | wc -l | awk '{ print $1 }'`
+  if git status | grep -q "modified:" ; then
+    LOCAL_VERSION="${VERSION}M"
+  fi
+  
+  VERSION=${VERSION}r${LOCAL_VERSION}
+    echo "VERSION = $VERSION"; sleep 2
+    cd $CWD; rm -rf $PRGNAM-$VERSION; mv $PRGNAM $PRGNAM-$VERSION
+
+    introduce "Compressing source ..."
+    tar --exclude .git -${TARCOMP}cvf $PRGNAM-$VERSION.$EXT $PRGNAM-$VERSION \
+    || shellout "Compressing source failed."
+    conclude "Compressing source finished successfully."
+    conclude "The file is $SRCNAM-$VERSION.$EXT" 
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP || exit 1
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$SOURCE \
-|| shellout "Extracting $SOURCE"
+tar xvf $CWD/${SRCNAM}-${VERSION}.$EXT \
+|| shellout "Extracting ${SRCNAM}-${VERSION}.$EXT"
 
 introduce "Start SlackBuild $PRGNAM-$VERSION"
 test -d $PRGNAM-$VERSION || \
@@ -107,35 +149,88 @@ cd $TMP/$PRGNAM-$VERSION
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
-
 if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i486 -mtune=i686"
+  SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i686 -mtune=i686"
+  SLACKCFLAGS="-O2 -march=i686 -mtune=i686"
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -fPIC"
+  SLACKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
   NUMJOBS=2
 fi
 
+introduce "Running bootstrap"
+./bootstrap || shellout "bootstrap failed."
+
+# when i was building vlc, i had troubles with libpulse (pulseaudio), that's
+# the reason why i disabled it ...
 introduce "Running configure"
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
-./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
-|| shellout "configure of $PRGNAM-$VERSION failed"
+CPPFLAGS="-I/usr/include" \
+CFLAGS="$SLACKCFLAGS -I/usr/include -I/usr/include/libraw1394 -I/usr/lib64/live/liveMedia/include" \
+CXXFLAGS="$SLACKCFLAGS -I/usr/include -I/usr/include/libraw1394 -I/usr/lib64/live/liveMedia/include" \
+LDFLAGS="$SLACKLDFLAGS -L/usr/lib${LIBDIRSUFFIX}" \
+PKG_CONFIG_PATH="/usr/lib${LIBDIRSUFFIX}/pkgconfig" \
+./configure --prefix=/usr \
+    --libdir=/usr/lib${LIBDIRSUFFIX} \
+    --sysconfdir=/etc \
+    --mandir=/usr/man \
+    --localstatedir=/var \
+    --without-contrib \
+    --disable-rpath \
+    --disable-debug \
+    --disable-static \
+    --disable-gnomevfs \
+    --disable-zvbi \
+    --disable-snapshot \
+    --enable-shared \
+    --enable-optimize-memory=no \
+    --enable-qt4 \
+    --enable-lua \
+    --enable-pvr \
+    --enable-dc1394 \
+    --enable-dv \
+    --enable-dvbpsi \
+    --enable-dvdnav \
+    --enable-vcdx \
+    --enable-libcddb \
+    --enable-svg \
+    --enable-svgalib \
+    --enable-telx \
+    --enable-libass \
+    --enable-v4l \
+    --enable-caca \
+    --enable-aa \
+    --enable-switcher \
+    --enable-upnp \
+    --enable-flac \
+    --enable-schroedinger \
+    --enable-live555 \
+    --enable-real \
+    --enable-realrtsp \
+    --enable-speex \
+    --enable-x264 \
+    --enable-a52 \
+    --enable-faad \
+    --enable-twolame \
+    --enable-ogg \
+    --enable-vorbis \
+    --enable-theora \
+    --enable-libmpeg2 \
+    --enable-avcodec \
+    --enable-avformat \
+    --enable-swscale \
+    --enable-swscale \
+    --enable-httpd \
+    --enable-libproxy \
+    --enable-bluray \
+    --enable-screen \
+    --enable-shout \
+    --enable-alsa \
+    --enable-goom \
+    --enable-lirc \
+    --enable-run-as-root \
+    --build=$ARCH-slackware-linux \
+    || shellout "configure of $PRGNAM-$VERSION failed"
 conclude "./configure finished successfully"
 
 introduce "Running make"
@@ -143,7 +238,6 @@ make -j${NUMJOBS} || shellout "make failed."
 introduce "Running make install"
 make DESTDIR=$PKG install || shellout "make install failed"
 
-# strip binaries
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
 
@@ -160,18 +254,18 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: 
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
+   |-----handy-ruler----------------------------------------------------|
+vlc:                                 ( vlc ) 
+vlc:
+vlc: VLC is a free and open source cross-platform multimedia player and
+vlc: framework, that plays most multimedias files as well as DVD,
+vlc: Audio CD, VCD, and various streaming protocols.
+vlc:
+vlc:
+vlc: 
+vlc: Homepage: http://www.videolan.org/
+vlc: 
+vlc: Packager: _PACKAGER on _BUILD_DATE
 EODESC
 
 # Install a doinst.sh, if it exists

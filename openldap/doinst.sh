@@ -11,3 +11,7 @@ config() {
     # Otherwise, we leave the .new copy for the admin to consider...
 }
 
+config etc/openldap/ldap.conf.new
+config etc/openldap/slapd.conf.new
+config etc/rc.d/rc.slapd.new
+

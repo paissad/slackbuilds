@@ -26,7 +26,7 @@
 time_start_script=$(date +%s)
 
 PACKAGER_ID=${PACKAGER_ID:-$USER}
-PACKAGER=${PACKAGER:-$USER@$(hostname)}
+PACKAGER=${PACKAGER:-$USER@$(cat /etc/HOSTNAME)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-ffmpeg}
@@ -40,13 +40,15 @@ CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
+EXT=${EXT:-tar.bz2}
+SOURCE=${SRCNAM}-${VERSION}.$EXT
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
-DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE LICENSE.txt LICENSE.TXT \
-CHANGELOG ChangeLog CHANGELOG.txt CHANGELOG.TXT HACKING INSTALL INSTALL.txt \
-INSTALL.TXT MAINTAINERS NEWS ReadMe README README.txt THANKS TODO RELEASE UPGRADING FAQ HELP"}
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
+CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
+ReadMe* README* THANKS TODO Todo RELEASE* UPGRADING* FAQ Faq HELP* BUGS*"}
 
 set -e
 
@@ -84,18 +86,36 @@ warnout(){
     echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
 }
 
+# Determine the tarball extension:
+case "$EXT" in
+    "tar.xz") TARCOMP="J" ;;
+    "tar.gz") TARCOMP="z" ;;
+    "tgz") TARCOMP="z" ;;
+    "tar.bz2") TARCOMP="j" ;;
+    *) echo "Archive can only have extension 'tar.xz', '.tar.gz' '.tar.bz2' or '.tgz'" ; 
+    exit 1 ;;
+esac
+
+# Download of the source !
+if [ ! -r $SOURCE ]; then
+    introduce "Start downloading ${SRCNAM} at revision $SVN_REVISION" 
+    svn export -r $SVN_REVISION $SVN_URL $PRGNAM-$VERSION  \
+  || shellout "Downloading ${SRCNAM}"
+    conclude "Download of ${SRCNAM} at revision $SVN_REVISION finished successfully !"
+
+  introduce "Compressing source ..."
+    tar -${TARCOMP}cvf $SOURCE $PRGNAM-$VERSION \
+    || shellout "Compressing source failed."
+    conclude "Compressing source finished successfully."
+    conclude "The file is $SOURCE" 
+fi
+
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP || exit 1
 rm -rf $PRGNAM-$VERSION
-
-# Download of the source !
-if [ ! -r ${SRCNAM}-${VERSION} ]; then
-    introduce "Start downloading ${SRCNAM} at revision ${SVN_REVISION}" 
-    svn export -r $SVN_REVISION $SVN_URL $PRGNAM-$VERSION \
-	|| shellout "Downloading ${SRCNAM}"
-    conclude "Download of ${SRCNAM} at revision $SVN_REVISION finished successfully !"
-fi
+tar xvf $CWD/$SOURCE \
+|| shellout "Extracting $SOURCE"
 
 introduce "Start SlackBuild $PRGNAM-$VERSION"
 test -d $PRGNAM-$VERSION || \
@@ -147,12 +167,6 @@ else
   libfaac=""
 fi
 
-if [ "${FAAD:-yes}" = "yes" ]; then
-  libfaad="--enable-libfaad"
-else
-  libfaad=""
-fi
-
 if [ "${LAME:-yes}" = "yes" ]; then
   mp3lame="--enable-libmp3lame"
 else
@@ -199,10 +213,10 @@ fi
 CFLAGS="$SLACKCFLAGS" \
 CXXFLAGS="$SLACKCFLAGS" \
 ./configure \
-  --prefix=/usr \
-  --libdir=/usr/lib${LIBDIRSUFFIX} \
-  --shlibdir=/usr/lib${LIBDIRSUFFIX} \
-  --mandir=/usr/man \
+  --prefix=$PREFIX \
+  --libdir=$PREFIX/lib${LIBDIRSUFFIX} \
+  --shlibdir=$PREFIX/lib${LIBDIRSUFFIX} \
+  --mandir=$PREFIX/man \
   --disable-debug \
   --enable-shared \
   --disable-static \
@@ -213,12 +227,10 @@ CXXFLAGS="$SLACKCFLAGS" \
   --enable-swscale \
   --enable-x11grab \
   --enable-avfilter \
-  --enable-avfilter-lavf \
   $openjpeg \
   $libdc1394 \
   $mp3lame \
   $libfaac \
-  $libfaad \
   $libxvid \
   $libx264 \
   $libspeex \
@@ -265,8 +277,6 @@ done
 cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
 chown -R root:root $PKG/usr/doc/$PRGNAM-$VERSION
 find $PKG/$PREFIX/doc -type f -exec chmod 0644 {} \;
-
-# -- finished install docs --
 
 # We change the default values in the slack-desc 
 sed -i "s|_PACKAGER|${PACKAGER}|g; s|_BUILD_DATE|${DATE}|g" \

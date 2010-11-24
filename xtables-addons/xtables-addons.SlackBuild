@@ -29,18 +29,20 @@ PACKAGER_ID=${PACKAGER_ID:-$USER}
 PACKAGER=${PACKAGER:-$USER@$(cat /etc/HOSTNAME)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
-PRGNAM=${PRGNAM:-}
+PRGNAM=${PRGNAM:-xtables-addons}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-}
+VERSION=${VERSION:-1.31}
+KERNEL=${KERNEL:-$(uname -r)}
+PKGVER=${VERSION}_${KERNEL//-/_}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
-EXT=${EXT:-tar.bz2}
+EXT=${EXT:-tar.xz}
 SOURCE=${SRCNAM}-${VERSION}.$EXT
-URL=${URL:-http://downloads.sourceforge.net/project/$SOURCE}
+URL=${URL:-http://sourceforge.net/projects/xtables-addons/files/Xtables-addons/$VERSION/$SOURCE/download}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
@@ -107,34 +109,34 @@ cd $TMP/$PRGNAM-$VERSION
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
-#chown -R root:root .
-#find . \
-#\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
-#-exec chmod 755 {} \; -o \
-#\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
-#-perm 400 \) -exec chmod 644 {} \;
 
 if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i486 -mtune=i686"
+  SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i686 -mtune=i686"
+  SLACKCFLAGS="-O2 -march=i686 -mtune=i686"
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -fPIC"
+  SLACKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
   NUMJOBS=2
 fi
 
+# Let's patch the configure file 1st
+patch < $CWD/patches/configure.patch \
+|| shellout "Applying the patch failed."
+
 introduce "Running configure"
-CFLAGS="$SLKCFLAGS" \
-CXXFLAGS="$SLKCFLAGS" \
+CFLAGS="$SLACKCFLAGS" \
+CXXFLAGS="$SLACKCFLAGS" \
 ./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
+  --prefix=$PREFIX \
+  --libdir=$PREFIX/lib${LIBDIRSUFFIX} \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --mandir=$PREFIX/man \
+  --docdir=$PREFIX/doc/$PRGNAM-$PKGVER \
+  --enable-shared \
+  --with-kbuild=/lib/modules/$KERNEL/build \
+  --build=$ARCH-slackware-linux \
 || shellout "configure of $PRGNAM-$VERSION failed"
 conclude "./configure finished successfully"
 
@@ -160,18 +162,18 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
-$PRGNAM:                                 ( $PRGNAM ) 
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM:
-$PRGNAM: 
-$PRGNAM: Homepage: 
-$PRGNAM: 
-$PRGNAM: Packager: _PACKAGER on _BUILD_DATE
-$PRGNAM:
+              |-----handy-ruler----------------------------------------------------|
+xtables-addons:                                 ( xtables-addons ) 
+xtables-addons:
+xtables-addons: Xtables-addons is a package that obsoletes the old patch-o-matic 
+xtables-addons: repository for the Linux kernel and iptables. Instead of patching the
+xtables-addons: kernel source, extensions are built as modules and thus allow
+xtables-addons: extending kernels without recompilation.
+xtables-addons: 
+xtables-addons: Homepage: http://xtables-addons.sourceforge.net/
+xtables-addons: 
+xtables-addons: Packager: _PACKAGER on _BUILD_DATE
+xtables-addons:
 EODESC
 
 # Install a doinst.sh, if it exists
@@ -190,17 +192,18 @@ fi
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION
-mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$PKGVER
 for i in $DOCS ;
 do 
   if [ -r $i ]; then
-    install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+    install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$PKGVER
   fi
 done
+cp -a doc/ $PKG/$PREFIX/doc/$PRGNAM-$PKGVER
 
-mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
-cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
-chown -R root:root $PKG/usr/doc/$PRGNAM-$VERSION
+mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$PKGVER
+cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$PKGVER/$PRGNAM.SlackBuild
+chown -R root:root $PKG/usr/doc/$PRGNAM-$PKGVER
 find $PKG/$PREFIX/doc -type f -exec chmod 0644 {} \;
 
 # We change the default values in the slack-desc 
@@ -209,8 +212,8 @@ ${PKG}/install/slack-desc || true
 
 cd $PKG 
 introduce "Running makepkg ..."
-/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
-|| shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$PKGVER-$ARCH-$BUILD$TAG.$PKGTYPE \
+|| shellout "/sbin/makepkg for $PRGNAM-$PKGVER failed"
 
 time_end=$(date +%s)
 elapsed_time_script=`expr $time_end - $time_start_script`

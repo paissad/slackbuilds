@@ -1,14 +1,24 @@
+This SlackBuild downloads, checks md5sums, extracts & builds automatically a kernel.
+The SlackBuild always use the current kernel config available in your system.
+
+Examples of use:
+
+- bash kernel.SlackBuild    ( this will download latest stable kernel from kernel.org )
+- RUN_KERN_CONFIG=yes ./kernel.SlackBuild ( does the same, but you will be prompted for make $KERN_CONFIG,
+by default $KERN_NAME=menuconfig, you may change it to oldconfig for example :) )
+- ./kernel.SlackBuild 2.6.29 ( will donwload & build kernel 2.6.29, VERSION=2.6.29 then )
+
 After running the slackbuild
 The following packages will be created:
 
-kernel-huge-$VERSION-x86_64-1_****
-kernel-modules-$VERSION-x86_64-1_****
-kernel-headers-$VERSION-x86_64-1_****
+kernel-huge-$VERSION-$ARCH-1_****
+kernel-modules-$VERSION-$ARCH-1_****
+kernel-headers-$VERSION-$ARCH-1_****
 kernel-firmware-$VERSION-noarch-1_****
 kernel-source-$VERSION-noarch-1_****
 kernel-docs-$VERSION-noarch-1_**** (if $BUILD_DOCS=yes)
 
-You should install in this order
+You should install the packages in this order
 1 ->  kernel-$KERN_NAME( where $KERN_NAME = huge, generic or whatever ), 
 2 ->  kernel-modules 
 3 ->  kernel-headers
