@@ -166,8 +166,8 @@ cat << EODESC > $PKG/install/slack-desc
 xtables-addons:                                 ( xtables-addons ) 
 xtables-addons:
 xtables-addons: Xtables-addons is a package that obsoletes the old patch-o-matic 
-xtables-addons: repository for the Linux kernel and iptables. Instead of patching the
-xtables-addons: kernel source, extensions are built as modules and thus allow
+xtables-addons: repository for the Linux kernel and iptables. Instead of patching 
+xtables-addons: the kernel source, extensions are built as modules and thus allow
 xtables-addons: extending kernels without recompilation.
 xtables-addons: 
 xtables-addons: Homepage: http://xtables-addons.sourceforge.net/

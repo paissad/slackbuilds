@@ -152,7 +152,7 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
+       |-----handy-ruler----------------------------------------------------|
 policyd:  
 policyd: Policyd v2 (codenamed "cluebringer") is a multi-platform policy
 policyd: server for popular MTAs. This policy daemon is designed mostly

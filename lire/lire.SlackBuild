@@ -150,7 +150,7 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
+    |-----handy-ruler----------------------------------------------------|
 lire:                                 ( lire ) 
 lire: Lire is a full-featured and extensible set of utilities and API's to
 lire: generate statistics and reports from logfiles.

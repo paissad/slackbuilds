@@ -205,7 +205,7 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
+            |-----handy-ruler----------------------------------------------------|
 mod_security:  
 mod_security: mod_security (Security module for the Apache HTTP Server)
 mod_security:

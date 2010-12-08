@@ -31,8 +31,8 @@ DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-postfixadmin}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-2.3}
-ARCH=${ARCH:-$(uname -m)}
+VERSION=${VERSION:-2.3.2}
+ARCH=${ARCH:-noarch}
 BUILD=${BUILD:-1}
 DOCROOT=${DOCROOT:-/var/www/htdocs}
 CWD=${CWD:-`pwd`}
@@ -40,7 +40,7 @@ TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
 EXT=${EXT:-tar.gz}
-URL=${URL:-http://sourceforge.net/projects/postfixadmin/files/postfixadmin/${SRCNAM}_$VERSION.$EXT/download/}
+URL=${URL:-http://sourceforge.net/projects/postfixadmin/files/postfixadmin/${SRCNAM}-$VERSION/${SRCNAM}-$VERSION.$EXT/download/}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
@@ -86,18 +86,18 @@ warnout(){
 }
 
 # Download of the source !
-if [ ! -r ${SRCNAM}_${VERSION}.$EXT ]; then
-    introduce "Start downloading ${SRCNAM}_${VERSION}.$EXT" 
-    wget "$URL" || shellout "Downloading ${SRCNAM}_${VERSION}.$EXT"
-    conclude "Download of ${SRCNAM}_${VERSION}.$EXT finished successfully !"
+if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
+    introduce "Start downloading ${SRCNAM}-${VERSION}.$EXT" 
+    wget "$URL" || shellout "Downloading ${SRCNAM}-${VERSION}.$EXT"
+    conclude "Download of ${SRCNAM}-${VERSION}.$EXT finished successfully !"
 fi
 
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP || exit 1
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/${SRCNAM}_${VERSION}.$EXT \
-|| shellout "Extracting ${SRCNAM}_${VERSION}.$EXT"
+tar xvf $CWD/${SRCNAM}-${VERSION}.$EXT \
+|| shellout "Extracting ${SRCNAM}-${VERSION}.$EXT"
 
 introduce "Start SlackBuild $PRGNAM-$VERSION"
 test -d $PRGNAM-$VERSION || \
@@ -105,10 +105,12 @@ mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
 chown -R root:root .
+chmod 0600 config.inc.php
+
 CONF_FILES="config.inc.php motd.txt motd-users.txt" 
 for i in $CONF_FILES
 do
-    cp -a $i $i.new || exit 1
+    mv $i $i.new || exit 1
 done
 
 mkdir -p ${PKG}/${DOCROOT}
@@ -128,7 +130,7 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
+            |-----handy-ruler----------------------------------------------------|
 postfixadmin:                                 ( postfixadmin ) 
 postfixadmin:
 postfixadmin: Postfix Admin is a Web Based Management tool created for postfix
@@ -167,6 +169,7 @@ do
     install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
   fi
 done
+cp -a DOCUMENTS/ GPL-LICENSE.TXT $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 
 mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild

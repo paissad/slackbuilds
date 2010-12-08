@@ -118,7 +118,7 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
+    |-----handy-ruler----------------------------------------------------|
 trac:                  Trac 
 trac: Trac is an enhanced wiki and issue tracking system for software 
 trac: development projects.
