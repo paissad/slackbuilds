@@ -26,12 +26,12 @@
 time_start_script=$(date +%s)
 
 PACKAGER_ID=${PACKAGER_ID:-$USER}
-PACKAGER=${PACKAGER:-$USER@$(hostname)}
+PACKAGER=${PACKAGER:-$USER@$(hostname -f)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-postfixadmin}
 SRCNAM=${SRCNAM:-$PRGNAM}
-APACHE_USER=${APACHE_USER:-apache}
+APACHE_USER=${APACHE_USER:-root}
 APACHE_GRP=${APACHE_GRP:-apache}
 VERSION=${VERSION:-2.3.2}
 ARCH=${ARCH:-noarch}
@@ -107,13 +107,9 @@ mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
 chown -R $APACHE_USER:$APACHE_GRP .
+find . -type f -exec chmod 0640 "{}" \;
 chmod 0600 config.inc.php
-
-CONF_FILES="config.inc.php motd.txt motd-users.txt" 
-for i in $CONF_FILES
-do
-    mv $i $i.new || exit 1
-done
+mv config.inc.php{,.new}
 
 mkdir -p ${PKG}/${DOCROOT}
 cp -a $TMP/$PRGNAM-$VERSION ${PKG}/${DOCROOT}/postfixadmin \
@@ -155,12 +151,9 @@ fi
 DOCROOT=$( echo $DOCROOT | sed -e "s,^/,," -e "s,/$,,")
 
 # Let's adapt the doinst.sh
-for i in $CONF_FILES 
-do
 cat <<EOFDOINST >> $PKG/install/doinst.sh
-config $DOCROOT/postfixadmin/$i.new
+config $DOCROOT/postfixadmin/config.inc.php.new
 EOFDOINST
-done
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION

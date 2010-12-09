@@ -26,7 +26,7 @@
 time_start_script=$(date +%s)
 
 PACKAGER_ID=${PACKAGER_ID:-$USER}
-PACKAGER=${PACKAGER:-$USER@$(hostname)}
+PACKAGER=${PACKAGER:-$USER@$(hostname -f)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-libprelude}

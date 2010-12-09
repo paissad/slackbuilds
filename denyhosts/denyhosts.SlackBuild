@@ -24,7 +24,7 @@
 # Suggests:
 
 PACKAGER_ID=${PACKAGER_ID:-$USER}
-PACKAGER=${PACKAGER:-$USER@$(hostname)}
+PACKAGER=${PACKAGER:-$USER@$(hostname -f)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-denyhosts}

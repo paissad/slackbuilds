@@ -1,6 +1,6 @@
 You may need to set the following variables
-DOCROOT
-APACHEUSER
-APACHEGRP
+DOCROOT     (default is /var/www/htdocs/)
+APACHE_USER (default is root)
+APACHE_GRP  (default is apache)
 Just take a look in the SlackBuild
 
