@@ -31,6 +31,8 @@ DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-postfixadmin}
 SRCNAM=${SRCNAM:-$PRGNAM}
+APACHE_USER=${APACHE_USER:-apache}
+APACHE_GRP=${APACHE_GRP:-apache}
 VERSION=${VERSION:-2.3.2}
 ARCH=${ARCH:-noarch}
 BUILD=${BUILD:-1}
@@ -104,7 +106,7 @@ test -d $PRGNAM-$VERSION || \
 mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
-chown -R root:root .
+chown -R $APACHE_USER:$APACHE_GRP .
 chmod 0600 config.inc.php
 
 CONF_FILES="config.inc.php motd.txt motd-users.txt" 
