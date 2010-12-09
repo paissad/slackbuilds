@@ -31,7 +31,7 @@ DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-postfixadmin}
 SRCNAM=${SRCNAM:-$PRGNAM}
-APACHE_USER=${APACHE_USER:-root}
+APACHE_USER=${APACHE_USER:-apache}
 APACHE_GRP=${APACHE_GRP:-apache}
 VERSION=${VERSION:-2.3.2}
 ARCH=${ARCH:-noarch}
