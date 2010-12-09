@@ -152,11 +152,18 @@ conclude "./configure finished successfully"
 
 introduce "Running make"
 make -j${NUMJOBS} || shellout "make failed." 
+
 introduce "Running make test"
 make test || shellout "make test failed."
 
-mkdir -p $PKG/usr/lib${LIBDIRSUFFIX}/php/extensions
-cp -a modules/$PRGNAM.so $PKG/usr/lib$LIBDIRSUFFIX/php/extensions
+introduce "Running make install"
+make install INSTALL_ROOT=$PKG \
+|| shellout "Running make install"
+
+( cd $PKG || exit 1
+  find . -type f | xargs file | grep -e "executable" -e "shared object" | \
+    grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded  2> /dev/null
+)
 
 # Installation of slack-desc
 mkdir -p $PKG/install 
