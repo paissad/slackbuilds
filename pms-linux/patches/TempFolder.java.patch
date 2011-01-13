@@ -1,15 +1,11 @@
-In this patch, i changed the default name of the log file.
-By default, the name is debug.log, i changed it to debug-$USER.log
-where $USER is the user which runs the program.
---- TempFolder.java.orig	2010-03-16 03:40:25.000000000 +0100
-+++ TempFolder.java	2010-03-16 01:47:43.000000000 +0100
-@@ -1,8 +1,12 @@
-+/*
-+ * I Changed the default temp dir /tmp/javaps3media to
-+ * /tmp/javaps3media-$(USER) 
-+ */
-+
- package net.pms.configuration;
+
+I Changed the default temp dir /tmp/javaps3media to
+/tmp/javaps3media-$(USER)
+
+===================================================================
+--- a/net/pms/configuration/TempFolder.java
++++ b/net/pms/configuration/TempFolder.java
+@@ -2,7 +2,6 @@
  
  import java.io.File;
  import java.io.IOException;
@@ -17,22 +13,24 @@ where $USER is the user which runs the program.
  import net.pms.PMS;
  
  import org.apache.commons.io.FileUtils;
-@@ -13,8 +17,12 @@
+@@ -13,8 +12,14 @@
   * @author Tim Cox (mail@tcox.org)
   */
  class TempFolder {
 -
 -	private static final String DEFAULT_TEMP_FOLDER_NAME = "javaps3media";
 +    
-+    // Added by the debian package maintainer
++	/* 
++     Added by the Debian/Ubuntu package maintainer
++	 */
 +	String username = System.getProperty("user.name");
 +	//private static final String DEFAULT_TEMP_FOLDER_NAME = "javaps3media-"+username;
 +	private String DEFAULT_TEMP_FOLDER_NAME = "javaps3media-"+username;
-+	// end modification
++	// End of modification modifications made by package maintainer 
  
  	private final String userSpecifiedFolder;
  	
-@@ -59,7 +67,8 @@
+@@ -59,7 +64,8 @@
  		return folderFile;
  	}
  

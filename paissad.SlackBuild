@@ -26,7 +26,7 @@
 time_start_script=$(date +%s)
 
 PACKAGER_ID=${PACKAGER_ID:-$USER}
-PACKAGER=${PACKAGER:-$USER@$(cat /etc/HOSTNAME)}
+PACKAGER=${PACKAGER:-$USER@$HOSTNAME}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-}
@@ -43,14 +43,16 @@ SOURCE=${SRCNAM}-${VERSION}.$EXT
 URL=${URL:-http://downloads.sourceforge.net/project/$SOURCE}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
-PREFIX=${PREFIX:-"/usr"}
+PREFIX="${PREFIX:-/usr}"
 NUMJOBS=${NUMJOBS:-}
 DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
 CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
 ReadMe* README* THANKS TODO Todo RELEASE* UPGRADING* FAQ Faq HELP* BUGS*"}
 
 set -e
+trap shellout EXIT
 
+# Colors#{{{
 txtred=$'\e[0;31m' # Red
 txtgrn=$'\e[0;32m' # Green
 txtylw=$'\e[0;33m' # Yellow
@@ -58,46 +60,51 @@ txtblu=$'\e[0;34m' # Blue
 txtpur=$'\e[0;35m' # Purple
 txtcyn=$'\e[0;36m' # Cyan
 txtrst=$'\e[0m'    # Text Reset
+##}}}
 
+# Fancy functions#{{{
 frame()
 {
     WIDTH=78
-    STARS="++----------------------------------------------------------------------------+"
-    SPACES="                                                                               "
-    printf "%s\n" "${STARS:1:$WIDTH}"
+    STARS="+";for ((i=1; i<=$(($WIDTH-2)); i++));do STARS+="-";done; STARS+="+"
+    SPACES="";for ((i=1; i<$WIDTH; i++)); do SPACES+=" "; done
+    printf "%s\n" "${STARS:0:$WIDTH}"
     while read line ; do
         HALF="${SPACES:1:$((($WIDTH-${#line})/2))}"
         LINE="$HALF$line$SPACES"
         printf "+%s+\n" "${LINE:1:$(($WIDTH-2))}"
     done
-    printf "%s\n" "${STARS:1:$WIDTH}"
+    printf "%s\n" "${STARS:0:$WIDTH}"
 }
 introduce(){
-    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst \c "; sleep 2;
+    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst\c"; sleep 2;
 }
 conclude(){
     echo -e "${txtgrn}\n# $1 \n${txtrst}"; sleep 2;
 }
 shellout(){
-    echo -e "${txtred}Error:${txtrst} $1 ${txtcyn}(exit status -> $?)${txtrst}"; exit 1;
+  ret=$?
+    if (($ret)); then
+        echo -e "${txtred}Error:${txtrst} $process failed ! ${txtcyn}"
+    echo -e "(exit status of last command -> $ret)${txtrst}"
+      exit 1;
+    fi
 }
-warnout(){
-    echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
-}
+##}}}
 
-# Download of the source !
+# Download of the source !#{{{
 if [ ! -r $SOURCE ]; then
     introduce "Start downloading $SOURCE" 
-    wget "$URL" || shellout "Downloading $SOURCE"
+    wget "$URL"
     conclude "Download of $SOURCE finished successfully !"
 fi
+##}}}
 
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP || exit 1
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/$SOURCE \
-|| shellout "Extracting $SOURCE"
+tar xvf $CWD/$SOURCE
 
 introduce "Start SlackBuild $PRGNAM-$VERSION"
 test -d $PRGNAM-$VERSION || \
@@ -115,39 +122,44 @@ chmod -R u+w,go+r-w,a-s .
 #-perm 400 \) -exec chmod 644 {} \;
 
 if [ "$ARCH" = "i486" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i486 -mtune=i686"
+    SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i486 -mtune=i686"
 elif [ "$ARCH" = "i686" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i686 -mtune=i686"
+    SLKCFLAGS="-D_GNU_SOURCE -O2 -march=i686 -mtune=i686"
 elif [ "$ARCH" = "x86_64" ]; then
-  SLKCFLAGS="-D_GNU_SOURCE -O2 -fPIC"
-  LIBDIRSUFFIX="64"
-  NUMJOBS=2
+    SLKCFLAGS="-D_GNU_SOURCE -O2 -fPIC"
+    LIBDIRSUFFIX="64"
+    NUMJOBS=2
 fi
 
-introduce "Running configure"
+process="Running configure"
+introduce "$process"
 CFLAGS="$SLKCFLAGS" \
 CXXFLAGS="$SLKCFLAGS" \
 ./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
-|| shellout "configure of $PRGNAM-$VERSION failed"
+    --prefix=$PREFIX \
+    --libdir=$PREFIX/lib${LIBDIRSUFFIX} \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --mandir=$PREFIX/man \
+    --docdir=$PREFIX/doc/$PRGNAM-$VERSION \
+    --build=$ARCH-slackware-linux
 conclude "./configure finished successfully"
 
-introduce "Running make"
-make -j${NUMJOBS} || shellout "make failed." 
-introduce "Running make install"
-make DESTDIR=$PKG install || shellout "make install failed"
+process="Running make"
+introduce "$process"
+make -j${NUMJOBS}
+conclude "make finished successfully"
+
+process="Running make install"
+introduce "$process"
+make DESTDIR=$PKG install
+conclude "make install finished successfully"
 
 # strip binaries
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
 
-# Installation of slack-desc
+# Installation of slack-desc#{{{
 mkdir -p $PKG/install 
 ( test -r $CWD/slack-desc && \
 cat $CWD/slack-desc > $PKG/install/slack-desc ) || \
@@ -160,7 +172,7 @@ cat << EODESC > $PKG/install/slack-desc
 # make exactly 11 lines for the formatting to be correct.  It's also           
 # customary to leave one space after the ':'.                                  
 
-         |-----handy-ruler----------------------------------------------------|
+|-----handy-ruler----------------------------------------------------|
 $PRGNAM:                                 ( $PRGNAM ) 
 $PRGNAM:
 $PRGNAM:
@@ -173,55 +185,62 @@ $PRGNAM:
 $PRGNAM: Packager: _PACKAGER on _BUILD_DATE
 $PRGNAM:
 EODESC
+##}}}
 
-# Install a doinst.sh, if it exists
+# Install a doinst.sh, if it exists#{{{
 if [ -r $CWD/doinst.sh ]; then
-   cat $CWD/doinst.sh > $PKG/install/doinst.sh
+    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
+##}}}
 
-## Install the manpages
-if [ -d $PKG/usr/man ]; then
-    cd $PKG/usr/man ;
+## Install the manpages#{{{
+if [ -d $PKG/$PREFIX/man ]; then
+    cd $PKG/$PREFIX/man ;
     find . -type f -exec gzip -9 {} \;
     for i in $( find . -type l ) ;do
         ln -s $( readlink $i ).gz $i.gz ; rm $i;
     done
 fi
+##}}}
 
-# Install the documentation
+# Install the documentation#{{{
 cd $TMP/$PRGNAM-$VERSION
 mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 for i in $DOCS ;
 do 
-  if [ -r $i ]; then
-    install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
-  fi
+    if [ -r $i ]; then
+        install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+    fi
 done
 
 mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
-chown -R root:root $PKG/usr/doc/$PRGNAM-$VERSION
+chown -R root:root $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 find $PKG/$PREFIX/doc -type f -exec chmod 0644 {} \;
+##}}}
 
 # We change the default values in the slack-desc 
 sed -i "s|_PACKAGER|${PACKAGER}|g; s|_BUILD_DATE|${DATE}|g" \
 ${PKG}/install/slack-desc || true
 
 cd $PKG 
-introduce "Running makepkg ..."
-/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
-|| shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"
+process="Running makepkg"
+introduce "$process"
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE
 
+# Calculate the script time running !#{{{
 time_end=$(date +%s)
 elapsed_time_script=`expr $time_end - $time_start_script`
 #Convert seconds to h:m:s format
 _hms(){
-  local S=${1}
-  ((h=S/3600))
-  ((m=S%3600/60))
-  ((s=S%60))
-  printf "%dh:%dm:%ds\n" $h $m $s
+    local S=${1}
+    ((h=S/3600))
+    ((m=S%3600/60))
+    ((s=S%60))
+    printf "%dh:%dm:%ds\n" $h $m $s
 }
+##}}}
+
 conclude "The script has been running during $(_hms $elapsed_time_script)"
 conclude "Done ..."
 

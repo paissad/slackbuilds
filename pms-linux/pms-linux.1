@@ -22,30 +22,40 @@ pms-linux \- PS3 Media Server for Linux
 .RI [ options ]
 .br
 .SH DESCRIPTION
-.B pms-linux
-(PS3 Media Server for Linux) is a DLNA compliant Upnp Media Server for the PS3, written in Java, with the purpose of streaming or transcoding any kind of media files, with minimum configuration. It's backed up with the powerful Mplayer/FFmpeg packages.
+This manual page documents briefly the PS3 Media Server for Linux.
+\fBpms-linux\fR is a DLNA compliant Upnp Media Server for the PS3, written in Java, with the purpose of streaming or transcoding any kind of media files, with minimum configuration. It's backed up with the powerful Mplayer/FFmpeg packages.
 .PP
 .\" TeX users may be more comfortable with the \fB<whatever>\fP and
 .\" \fI<whatever>\fP escape sequences to invode bold face and italics,
 .\" respectively.
-.\"\fBpms-linux\fP is a program that...
 .SH NOTES
-You can start manually pms-linux by entering pms-linux into a terminal.
-By default, pms-linux uses PMS.conf if it exists as a configuration file and that file must be in the same directory where pms-linux has been started.
+You can start pms-linux manually into a terminal or from the menu icon.
 .br
-For example, if your current directory is /foo/bar, pms-linux will use /foo/bar/PMS.conf if it does exist.
+You can also the start it from /etc/rc.d/rc.pms-linux
 .br
-At the same time, if you decide to save a configuration file too, it will be saved in directory where pms-linux has been started.
+The default configuration file used is $HOME/.PMS.conf
 .br
-But if you start pms-linux from the init.d script (/etc/init.d/pms-linux start), the program will use /etc/PMS.conf as configuration file because in the init.d script, /usr/share/pms-linux/PMS.conf is a symbolic link to /etc/PMS.conf.
+You can specify another configuration file to use with the \fB-c\fP or \fB--conf\fP option, but you would have to use an absolute path for the configuration file then !
 .br
-.B imporant:
-In any cases, the conf file must be named PMS.conf and obviously must be readable by the user !
-.br
-In the original /etc/PMS.conf file, the option "minimized" is set to "true" so that we don't need a running X server to start successfully pms-linux at boot startup.
+But if you start pms-linux from the rc.d script (/etc/rc.d/rc.pms-linux start), the program will use /etc/PMS.conf. /usr/share/pms-linux/PMS.conf is a symbolic link to /etc/PMS.conf.
 .br
 .SH OPTIONS
-No options available yet.
+Not all options are documented yet.
+.sp 2
+.IP "\fB-c\fR, \fB--conf \fIconfFile\fR"
+Example: pms-linux \-c /etc/myOtherPMS.conf
+.br
+\fBImporant:\fR
+.br
+\fB  1°\-\fR You must specify an absolute path for the configuration file when using the \-c|--conf option.
+.br
+      If there's an error, pms-linux will use default configuration file $HOME/.PMS.conf.
+.br
+\fB  2°\-\fR If you use the GUI for saving your configuration, the modifications are stored in $HOME/.PMS.conf, not in the conf file specified with the \-c option.
+.sp
+.IP "\fBconsole\fR"
+Disables the GUI environment.
+.sp 2
 .SH SEE ALSO
 .BR mplayer (1),
 .BR mencoder (1),
@@ -53,8 +63,7 @@ No options available yet.
 .BR vlc (1),
 .BR dcraw (1)
 .br
-.SH AUTHORS
+.SH AUTHOR
 pms-linux was written by shagrath <ps3mediaserver@gmail.com>.
 .PP
-This manual page was written by Papa Issa DIAKHATE <paissad@gmail.com>,
-for the Debian project (and may be used by others).
+This manual page was written by Papa Issa DIAKHATE aka paissad <paissad@gmail.com> (and may be used by others).

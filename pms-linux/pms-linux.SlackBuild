@@ -32,12 +32,13 @@ DATE=$(LC_ALL=C date +%d-%b-%Y)
 PRGNAM=${PRGNAM:-pms-linux}
 SRCNAM=${SRCNAM:-$PRGNAM}
 SVN_URL=${SVN_URL:-http://ps3mediaserver.googlecode.com/svn/trunk/ps3mediaserver}
-SVN_VERSION=${SVN_VERSION:-$(wget -q -O- $SVN_URL/build.xml \
-| sed -n "s/^[[:space:]]\{1,\}<property[[:space:]]\{1,\}name=\"version\".*value=\"\([0-9.]\{1,\}\)\".*\/>$/\1/p")}
+SVN_VERSION=${SVN_VERSION:-$(wget -q -O - $SVN_URL/net/pms/PMS.java \
+| grep -E "public static final String VERSION"  \
+| sed -ne 's/^[^=]*.*= *\"\([0-9\.]\+\)\".*/\1/p')}
 SVN_REVISION=${SVN_REVISION:-$(svn log -q -r HEAD $SVN_URL \
 | awk '/^r[0-9][0-9]*/ { print $1 }')}
 VERSION=${SVN_VERSION}${SVN_REVISION}
-ARCH=${ARCH:-$(uname -m)}
+ARCH=${ARCH:-noarch}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
@@ -62,31 +63,35 @@ txtpur=$'\e[0;35m' # Purple
 txtcyn=$'\e[0;36m' # Cyan
 txtrst=$'\e[0m'    # Text Reset
 
+# Fancy functions#{{{
 frame()
 {
     WIDTH=78
-    STARS="++----------------------------------------------------------------------------+"
-    SPACES="                                                                               "
-    printf "%s\n" "${STARS:1:$WIDTH}"
+    STARS="+";for ((i=1; i<=$(($WIDTH-2)); i++));do STARS+="-";done; STARS+="+"
+    SPACES="";for ((i=1; i<$WIDTH; i++)); do SPACES+=" "; done
+    printf "%s\n" "${STARS:0:$WIDTH}"
     while read line ; do
         HALF="${SPACES:1:$((($WIDTH-${#line})/2))}"
         LINE="$HALF$line$SPACES"
         printf "+%s+\n" "${LINE:1:$(($WIDTH-2))}"
     done
-    printf "%s\n" "${STARS:1:$WIDTH}"
+    printf "%s\n" "${STARS:0:$WIDTH}"
 }
 introduce(){
-    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst \c "; sleep 2;
+    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst\c"; sleep 2;
 }
 conclude(){
     echo -e "${txtgrn}\n# $1 \n${txtrst}"; sleep 2;
 }
 shellout(){
-    echo -e "${txtred}Error:${txtrst} $1 ${txtcyn}(exit status -> $?)${txtrst}"; exit 1;
+  ret=$?
+    if (($ret)); then
+        echo -e "${txtred}Error:${txtrst} $process failed ! ${txtcyn}"
+    echo -e "(exit status of last command -> $ret)${txtrst}"
+      exit 1;
+    fi
 }
-warnout(){
-    echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
-}
+##}}}
 
 # Downloading the source
 if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
@@ -122,54 +127,48 @@ find . \
 \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
 -perm 400 \) -exec chmod 644 {} \;
 
-# Let's backup PMS.conf too before modifying it !
-cp -a PMS.conf PMS.conf.example
-mv  PMS.sh pms-linux
+cp -a PMS.sh pms-linux
 
 # Let's change the original build.xml file
 # 1) We change the mode to 644
 # 2) We add new dirs of files to linux PACKAGE to be created during the build
 # 3) We include the new pms-linux (shell script) instead of the original one ( PMS.sh )
 mode=644
-add_to_build=dist-archive/**,PMS.conf,
-sed -i \
+add_to_build=dist-archive/**,PMS.conf,resources/**,
+sed -i".default" \
 -e "s/\(^[[:space:]]*<tarfileset.* mode=\"\).*\(\" prefix=.*\)/\1$mode\2/" \
 -e "s@\(^[[:space:]]*<tarfileset.* includes=\"\)\(.*\)@\1$add_to_build\2@" \
 -e "s@PMS.sh@pms-linux@" \
 build.xml || shellout "Changing build.xml file failed."
 
 # We change the DIRNAME variable of the default PMS.sh file
-sed -i -e \
-"s@\(^DIRNAME=\).*@\1/usr/share/$PRGNAM@" \
-pms-linux || exit 1
+sed -i -e "s@\(^DIRNAME=\).*@\1/usr/share/$PRGNAM@" pms-linux || exit 1
+# We add "cd $DIRNAME" into the PMS.sh (pms-linux) script.
+# DIRNAME is normally "/usr/share/pms-linux" 
+sed -i -e '/^DIRNAME=/ a\cd $DIRNAME' pms-linux || exit 1
 
-# Let's change an option in the PMS.conf file we will use for the system
-sed -i -e \
-"s/\(^minimized *= *\).*/\1true/" \
-PMS.conf || exit 1
-
-# Let's patch the TempFolder.java & PMS.java files
-cd $TMP/$PRGNAM-$VERSION/net/pms/configuration
-patch < $CWD/patches/TempFolder.java.diff \
-|| shellout "Patching TempFolder.java failed."
-
-cd $TMP/$PRGNAM-$VERSION/net/pms
-patch < $CWD/patches/PMS.java.diff \
-|| shellout "Patching PMS.java failed"
-## all patches done
+# Let's apply the patches
+cd $TMP/$PRGNAM-$VERSION
+patch -p1 <$CWD/patches/PMS.java.patch
+patch -p1 <$CWD/patches/TempFolder.java.patch
+patch -p1 <$CWD/patches/PmsConfiguration.java.patch
+patch -p1 <$CWD/patches/DLNAMediaDatabase.java.patch
+#patch -p1 <$CWD/patches/LinuxDefaultPaths.java.patch
 
 cd $TMP/$PRGNAM-$VERSION
-ant || shellout "Running of ant failed."
+ant || shellout "Running ant failed."
 ( cd $TMP/$PRGNAM-$VERSION/dist; tar xf *tgz; )
 
 mkdir -p $PKG/etc/{rc.d,logrotate.d}
 mkdir -p $PKG/usr/{bin,man/man1}
 mkdir -p $PKG/usr/share/{$PRGNAM,pixmaps,applications}
-mkdir -p $PKG/var/log/pms-linux
-chmod -R 1777 $PKG/var/log/pms-linux || exit 1
+mkdir -p $PKG/var/{lib,log}/pms-linux
+chmod -R 1777 $PKG/var/{lib,log}/pms-linux || exit 1
 
-cd $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-$SVN_VERSION
+
+cd $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-*
 cp -a renderers/ \
+resources \
 plugins/ \
 linux/ \
 dist-archive/ \
@@ -181,7 +180,7 @@ cat $TMP/$PRGNAM-$VERSION/WEB.conf > $PKG/etc/WEB.conf.new || exit 1
 
 chmod 0755 $PKG/usr/share/$PRGNAM/linux/tsMuxeR || exit 1
 
-install -m 0755 -D $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-$SVN_VERSION/pms-linux \
+install -m 0755 -D $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-*/pms-linux \
 $PKG/usr/bin || exit 1
 
 install -m 0755 $CWD/rc.pms-linux $PKG/etc/rc.d/rc.pms-linux.new || exit 1
@@ -227,9 +226,7 @@ fi
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION
-mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$VERSION/examples
-install -m 0644 -D $TMP/$PRGNAM-$VERSION/{PMS.conf.example,WEB.conf} \
-$PKG/$PREFIX/doc/$PRGNAM-$VERSION/examples
+mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 for i in $DOCS ;
 do 
   if [ -r $i ]; then
@@ -247,11 +244,9 @@ test -r $CWD/slack-desc && \
 cat $CWD/slack-desc > $PKG/install/slack-desc
 # -- finished install docs --
 
-set +e
 # We change the default values in the slack-desc 
 sed -i "s|_PACKAGER|${PACKAGER}|g; s|_BUILD_DATE|${DATE}|g" \
 ${PKG}/install/slack-desc
-set -e
 
 cd $PKG 
 /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \

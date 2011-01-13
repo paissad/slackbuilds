@@ -3,8 +3,9 @@ Written using Ruby on Rails framework, it is cross-platform and
 cross-database.
 
 You may want to change $RAILS_ROOT variable (where redmine will be installed)
+Default value: RAILS_ROOT=/var/www/htdocs
 
-Add redmine user before running the SlackBuild script !
+Create redmine user & group before running the SlackBuild script !
 # groupadd -g 303 redmine
 # useradd -u 303 -d /dev/null -s /bin/false -g redmine redmine
 

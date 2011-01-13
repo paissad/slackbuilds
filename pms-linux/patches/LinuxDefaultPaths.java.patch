@@ -1,0 +1,18 @@
+
+By default, pms-linux search for tsMuxeR in linux/tsMuxeR dir
+But knowning that that software is not free & is prebuilt, so i decided 
+to build it in another package & i put it in pool/non-free ...
+tsMuxeR should be available in the $PATH now after installing tsmuxer package.
+
+===================================================================
+--- a/net/pms/configuration/LinuxDefaultPaths.java
++++ b/net/pms/configuration/LinuxDefaultPaths.java
+@@ -29,7 +29,7 @@
+ 
+ 	@Override
+ 	public String getTsmuxerPath() {
+-		return "linux/tsMuxeR";
++		return "tsMuxeR";
+ 	}
+ 
+ 	@Override

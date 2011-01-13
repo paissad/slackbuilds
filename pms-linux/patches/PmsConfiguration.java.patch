@@ -1,0 +1,60 @@
+
+Now the default configuration file is $HOME/.PMS.conf instead of PMS.conf
+
+===================================================================
+--- a/net/pms/configuration/PmsConfiguration.java
++++ b/net/pms/configuration/PmsConfiguration.java
+@@ -143,6 +143,7 @@
+ 	private static final int MAX_MAX_MEMORY_BUFFER_SIZE = 600;
+ 	
+ 	private static final String CONFIGURATION_FILENAME = "PMS.conf";
++	private static final String CONFIGURATION_PATH_LINUX = System.getProperty("user.home") + "/.";
+ 	private static final String CONFIGURATION_PATH_MAC = System.getProperty("user.home") + "/Library/Application Support/PS3 Media Server/";
+ 	private static final char LIST_SEPARATOR = ',';
+ 	private static final String KEY_FOLDERS = "folders";
+@@ -159,6 +160,10 @@
+ 			configuration.load(strAppData + PMSDIR + CONFIGURATION_FILENAME);
+ 		} else if (Platform.isMac() && new File(CONFIGURATION_PATH_MAC + CONFIGURATION_FILENAME).exists()) {
+ 			configuration.load(CONFIGURATION_PATH_MAC + CONFIGURATION_FILENAME);
++		}
++		else if (Platform.isLinux() && new File(CONFIGURATION_PATH_LINUX + CONFIGURATION_FILENAME).exists()) {
++			System.out.println("The configuration file is " + CONFIGURATION_PATH_LINUX + CONFIGURATION_FILENAME);
++			configuration.load(CONFIGURATION_PATH_LINUX + CONFIGURATION_FILENAME);
+ 		} else {
+ 			if (new File(CONFIGURATION_FILENAME).exists())
+ 				configuration.load(CONFIGURATION_FILENAME);
+@@ -169,6 +174,21 @@
+ 		
+ 	}
+ 
++	// Do not blame me :) .. i'm not really a good java developer ! (paissad)
++	// I added this function to force the use of a specified conf file from command line
++	public PmsConfiguration(String configuration_filename_forced) throws ConfigurationException, IOException {
++		configuration = new PropertiesConfiguration();
++		configuration.setListDelimiter((char)0);
++		System.out.println("Using an alternative configuration file ... (MUST SPECIFY AN ABSOLUTE PATH FOR THE CONFIGURATION FILE !!");
++		System.out.println("The configuration file is " + configuration_filename_forced);
++		System.out.println("BE CAREFUL: this configuration file is READ-ONLY, all modifications you do when using the GUI will be saved in " + PmsConfiguration.CONFIGURATION_PATH_LINUX + PmsConfiguration.CONFIGURATION_FILENAME);
++		if (new File(configuration_filename_forced).exists())
++			configuration.load(configuration_filename_forced);
++		tempFolder = new TempFolder(getString(KEY_TEMP_FOLDER_PATH, null));
++		programPaths = createProgramPathsChain(configuration);
++		Locale.setDefault(new Locale(getLanguage()));
++	}
++
+ 	/**
+ 	 * Check if we have disabled something first, then check the Windows
+ 	 * registry, then the config file, then check for a platform-specific
+@@ -800,7 +820,11 @@
+ 	public void save() throws ConfigurationException {
+ 		if(Platform.isMac()) {
+ 			configuration.setFileName(CONFIGURATION_PATH_MAC + CONFIGURATION_FILENAME);
+-		} else {
++		}
++		else if(Platform.isLinux()){
++			// For Linux, use user's home directory + hidden file .PMS.conf
++			configuration.setFileName(CONFIGURATION_PATH_LINUX + CONFIGURATION_FILENAME);
++		}	else {
+ 			configuration.setFileName(CONFIGURATION_FILENAME);
+ 		}
+ 		try {

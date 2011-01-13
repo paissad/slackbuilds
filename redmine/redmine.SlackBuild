@@ -21,36 +21,39 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Requirements:
-# Suggests: rake, rubygems
+# Suggests:
 
 time_start_script=$(date +%s)
 
 PACKAGER_ID=${PACKAGER_ID:-$USER}
-PACKAGER=${PACKAGER:-$USER@$(hostname -f)}
+PACKAGER=${PACKAGER:-$USER@$(cat /etc/HOSTNAME)}
 DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-redmine}
 SRCNAM=${SRCNAM:-$PRGNAM}
-SVN_URL=${SVN_URL:-http://redmine.rubyforge.org/svn/trunk}
-SVN_REVISION=${SVN_REVISION:-"$(svn log -qr HEAD $SVN_URL | sed -n 's/^r\([0-9]\{1,\}\).*/\1/p')"}
-VERSION=${VERSION:-r$SVN_REVISION}
+VERSION=${VERSION:-1.0.4}
 ARCH=${ARCH:-noarch}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
 TMP=${TMP:-/tmp/SBp}
 PKG=${PKG:-$TMP/package-$PRGNAM}
 OUTPUT=${OUTPUT:-/tmp}
-EXT=${EXT:-tar.bz2}
+EXT=${EXT:-tar.gz}
+SOURCE=${SRCNAM}-${VERSION}.$EXT
+URL=${URL:-http://rubyforge.org/frs/download.php/73457/$SOURCE}
 TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 RAILS_ROOT=${RAILS_ROOT:-/var/www/htdocs}
+PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
 DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
-CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
-ReadMe* README* THANKS TODO Todo RELEASE UPGRADING FAQ HELP*"}
+CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
+ReadMe* README* THANKS TODO Todo RELEASE* UPGRADING* FAQ Faq HELP* BUGS*"}
 
 set -e
+trap shellout EXIT
 
+# Colors#{{{
 txtred=$'\e[0;31m' # Red
 txtgrn=$'\e[0;32m' # Green
 txtylw=$'\e[0;33m' # Yellow
@@ -58,63 +61,51 @@ txtblu=$'\e[0;34m' # Blue
 txtpur=$'\e[0;35m' # Purple
 txtcyn=$'\e[0;36m' # Cyan
 txtrst=$'\e[0m'    # Text Reset
+##}}}
 
+# Fancy functions#{{{
 frame()
 {
     WIDTH=78
-    STARS="++----------------------------------------------------------------------------+"
-    SPACES="                                                                               "
-    printf "%s\n" "${STARS:1:$WIDTH}"
+    STARS="+";for ((i=1; i<=$(($WIDTH-2)); i++));do STARS+="-";done; STARS+="+"
+    SPACES="";for ((i=1; i<$WIDTH; i++)); do SPACES+=" "; done
+    printf "%s\n" "${STARS:0:$WIDTH}"
     while read line ; do
         HALF="${SPACES:1:$((($WIDTH-${#line})/2))}"
         LINE="$HALF$line$SPACES"
         printf "+%s+\n" "${LINE:1:$(($WIDTH-2))}"
     done
-    printf "%s\n" "${STARS:1:$WIDTH}"
+    printf "%s\n" "${STARS:0:$WIDTH}"
 }
 introduce(){
-    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst \c "; sleep 2;
+    echo -e "$txtgrn"; printf "$1\n" | frame; echo -e "$txtrst\c"; sleep 2;
 }
 conclude(){
     echo -e "${txtgrn}\n# $1 \n${txtrst}"; sleep 2;
 }
 shellout(){
-    echo -e "${txtred}Error:${txtrst} $1 ${txtcyn}(exit status -> $?)${txtrst}"; exit 1;
+	ret=$?
+    if (($ret)); then
+        echo -e "${txtred}Error:${txtrst} $process failed ! ${txtcyn}"
+		echo -e "(exit status of last command -> $ret)${txtrst}"
+	   	exit 1;
+    fi
 }
-warnout(){
-    echo -e "${txtylw}Warning:${txtrst} $1"; sleep 3;
-}
+##}}}
 
-# Determine the tarball extension:
-case "$EXT" in
-    "tar.xz") TARCOMP="J" ;;
-    "tar.gz") TARCOMP="z" ;;
-    "tgz") TARCOMP="z" ;;
-    "tar.bz2") TARCOMP="j" ;;
-    *) echo "Archive can only have extension 'tar.xz', '.tar.gz' '.tar.bz2' or '.tgz'" ; 
-    exit 1 ;;
-esac
-
-# Download of the source !
-if [ ! -r ${SRCNAM}-${VERSION}.$EXT ]; then
-    introduce "Start downloading ${SRCNAM} at revision $SVN_REVISION" 
-    svn export -r $SVN_REVISION $SVN_URL $PRGNAM-$VERSION  \
-  || shellout "Downloading ${SRCNAM}"
-    conclude "Download of ${SRCNAM} at revision $SVN_REVISION finished successfully !"
-
-  introduce "Compressing source ..."
-    tar -${TARCOMP}cvf $PRGNAM-$VERSION.$EXT $PRGNAM-$VERSION \
-    || shellout "Compressing source failed."
-    conclude "Compressing source finished successfully."
-    conclude "The file is $SRCNAM-$VERSION.$EXT" 
+# Download of the source !#{{{
+if [[ ! -r "$SOURCE" ]]; then
+    introduce "Start downloading $SOURCE" 
+    wget "$URL"
+    conclude "Download of $SOURCE finished successfully !"
 fi
+##}}}
 
 rm -rf $PKG
 mkdir -p $TMP $PKG $OUTPUT
 cd $TMP || exit 1
 rm -rf $PRGNAM-$VERSION
-tar xvf $CWD/${SRCNAM}-${VERSION}.$EXT \
-|| shellout "Extracting ${SRCNAM}-${VERSION}.$EXT"
+tar xvf $CWD/$SOURCE
 
 introduce "Start SlackBuild $PRGNAM-$VERSION"
 test -d $PRGNAM-$VERSION || \
@@ -136,15 +127,19 @@ fi
 chown -R root:root .
 chmod -R u+w,go+r-w,a-s .
 
-mkdir -p $PKG/$RAILS_ROOT
+mkdir -p $PKG/$RAILS_ROOT/
 cp -a $TMP/$PRGNAM-$VERSION/ $PKG/$RAILS_ROOT/$PRGNAM
+
 mv $PKG/$RAILS_ROOT/$PRGNAM/config/database.yml.example $PKG/$RAILS_ROOT/$PRGNAM/config/database.yml.new
 mv $PKG/$RAILS_ROOT/$PRGNAM/config/email.yml.example $PKG/$RAILS_ROOT/$PRGNAM/config/email.yml.new
 
-chown -R redmine:redmine $PKG/$RAILS_ROOT/$PRGNAM/{files,log,tmp}
-chmod -R 755 $PKG/$RAILS_ROOT/$PRGNAM/{files,log,tmp}
+mkdir -p $PKG/$RAILS_ROOT/$PRGNAM/public/plugin_assets
+chown -R redmine:redmine $PKG/$RAILS_ROOT/$PRGNAM/{files,public/plugin_assets,log,tmp}
+chmod -R 755 $PKG/$RAILS_ROOT/$PRGNAM/{files,public/plugin_assets,log,tmp}
 
-# Installation of slack-desc
+#chmod 0600 $PKG/$RAILS_ROOT/$PRGNAM/config{database.yml.new,email.yml.new} 
+
+# Installation of slack-desc#{{{
 mkdir -p $PKG/install 
 ( test -r $CWD/slack-desc && \
 cat $CWD/slack-desc > $PKG/install/slack-desc ) || \
@@ -170,30 +165,42 @@ redmine:
 redmine: Packager: _PACKAGER on _BUILD_DATE
 redmine:
 EODESC
+##}}}
 
-# Install a doinst.sh, if it exists
+# Install a doinst.sh, if it exists#{{{
 if [ -r $CWD/doinst.sh ]; then
-   cat $CWD/doinst.sh > $PKG/install/doinst.sh
+    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
+##}}}
 
 # Let's remove the 1st & last / of the $RAILS_ROOT variable
-RAILS_ROOT=$( echo $RAILS_ROOT | sed -e "s,^/,," -e "s,/$,,")
+RAILS_ROOT=$(echo $RAILS_ROOT | sed -e "s,^/,," -e "s,/$,,")
 
 # add .new files to doinst.sh file
 echo "config $RAILS_ROOT/$PRGNAM/config/database.yml.new" >> $PKG/install/doinst.sh
 echo "config $RAILS_ROOT/$PRGNAM/config/email.yml.new" >> $PKG/install/doinst.sh
 echo -e "\nrm -rf $RAILS_ROOT/tmp/cache/*" >> $PKG/install/doinst.sh
 
-# Install the documentation
-PREFIX=usr
+## Install the manpages#{{{
+if [ -d $PKG/usr/man ]; then
+    cd $PKG/usr/man ;
+    find . -type f -exec gzip -9 {} \;
+    for i in $( find . -type l ) ;do
+        ln -s $( readlink $i ).gz $i.gz ; rm $i;
+    done
+fi
+##}}}
+
+# Install the documentation#{{{
 cd $TMP/$PRGNAM-$VERSION
 mkdir -p $PKG/$PREFIX/doc/$PRGNAM-$VERSION
-for i in $DOCS doc/* ;
+for i in $DOCS ;
 do 
-  if [ -r $i ]; then
-    install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
-  fi
+    if [ -r $i ]; then
+        install -m 644 $i $PKG/$PREFIX/doc/$PRGNAM-$VERSION
+    fi
 done
+##}}}
 
 mkdir -p  $PKG/$PREFIX/doc/$PRGNAM-$VERSION
 cat $CWD/$PRGNAM.SlackBuild > $PKG/$PREFIX/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
@@ -205,20 +212,23 @@ sed -i "s|_PACKAGER|${PACKAGER}|g; s|_BUILD_DATE|${DATE}|g" \
 ${PKG}/install/slack-desc || true
 
 cd $PKG 
-introduce "Running makepkg ..."
-/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \
-|| shellout "/sbin/makepkg for $PRGNAM-$VERSION failed"
+process="Running makepkg"
+introduce "$process"
+/sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE
 
+# Calculate the script time running !#{{{
 time_end=$(date +%s)
 elapsed_time_script=`expr $time_end - $time_start_script`
 #Convert seconds to h:m:s format
 _hms(){
-  local S=${1}
-  ((h=S/3600))
-  ((m=S%3600/60))
-  ((s=S%60))
-  printf "%dh:%dm:%ds\n" $h $m $s
+    local S=${1}
+    ((h=S/3600))
+    ((m=S%3600/60))
+    ((s=S%60))
+    printf "%dh:%dm:%ds\n" $h $m $s
 }
+##}}}
+
 conclude "The script has been running during $(_hms $elapsed_time_script)"
 conclude "Done ..."
 
