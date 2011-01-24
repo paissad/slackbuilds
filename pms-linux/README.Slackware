@@ -1,3 +1,17 @@
+==================================================================================
+
+THE LAST KNOWN REVISION FOR WHICH THE PATCHES WILL WORK IS '413'
+
+THEN, IF EVER YOU ENCOUNTER PROBLEMS DURING THE RUN OF THE SLACKBUILD, IT'S ALMOST
+SURE THAT IT COMES FROM AN INCOMPATIBLE REVISION CHANGES WITH THE GIVEN PATCHES.
+
+THUS, YOU SHOULD RUN THE SLACKBUILD LIKE THIS:
+
+SVN_REVISION=r413 ./pms-linux.SlackBuild
+
+Be aware of the 'r' before the revision number !
+==================================================================================
+
 If you want to start the script at boot, at this to your /etc/rc.d/rc.local file
 
 if [ -x /etc/rc.d/rc.pms-linux ]; then
