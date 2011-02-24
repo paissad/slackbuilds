@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH "PMS-LINUX" "1"  "February  5, 2010" "" ""
+.TH "PMS-LINUX" "1"  "February  22, 2011" "" ""
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -31,13 +31,13 @@ This manual page documents briefly the PS3 Media Server for Linux.
 .SH NOTES
 You can start pms-linux manually into a terminal or from the menu icon.
 .br
-You can also the start it from /etc/rc.d/rc.pms-linux
+You can also the start it from /etc/rc.d/pms-linux.
 .br
 The default configuration file used is $HOME/.PMS.conf
 .br
-You can specify another configuration file to use with the \fB-c\fP or \fB--conf\fP option, but you would have to use an absolute path for the configuration file then !
+You can specify another configuration file to use with the \fB-c\fP or \fB--conf\fP option.
 .br
-But if you start pms-linux from the rc.d script (/etc/rc.d/rc.pms-linux start), the program will use /etc/PMS.conf. /usr/share/pms-linux/PMS.conf is a symbolic link to /etc/PMS.conf.
+But if you start pms-linux from the rc.d script (/etc/rc.d/pms-linux start), the program will use /etc/pms-linux/PMS.conf.
 .br
 .SH OPTIONS
 Not all options are documented yet.
@@ -45,13 +45,11 @@ Not all options are documented yet.
 .IP "\fB-c\fR, \fB--conf \fIconfFile\fR"
 Example: pms-linux \-c /etc/myOtherPMS.conf
 .br
-\fBImporant:\fR
+\fBImportant:\fR
 .br
-\fB  1°\-\fR You must specify an absolute path for the configuration file when using the \-c|--conf option.
+   If an error occurs, pms-linux will use default configuration file $HOME/.PMS.conf.
 .br
-      If there's an error, pms-linux will use default configuration file $HOME/.PMS.conf.
-.br
-\fB  2°\-\fR If you use the GUI for saving your configuration, the modifications are stored in $HOME/.PMS.conf, not in the conf file specified with the \-c option.
+   If you use the GUI for saving your configuration, the modifications are stored in $HOME/.PMS.conf, not in the conf file specified with the \-c option.
 .sp
 .IP "\fBconsole\fR"
 Disables the GUI environment.
@@ -67,3 +65,5 @@ Disables the GUI environment.
 pms-linux was written by shagrath <ps3mediaserver@gmail.com>.
 .PP
 This manual page was written by Papa Issa DIAKHATE aka paissad <paissad@gmail.com> (and may be used by others).
+.br
+Special thanks to Roger R. Moore <roger.r.moore@bigfoot.com> who made some modifications for this manpage.

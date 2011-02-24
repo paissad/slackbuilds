@@ -3,7 +3,7 @@
 # Author: Papa Issa DIAKHATE <paissad@gmail.com>
 DESC="PS3 Media Server"
 NAME=pms-linux
-CONF_FILE=/etc/PMS.conf
+CONF_FILE=/etc/pms-linux/PMS.conf
 DODTIME=10    # Time to wait for the server to die, in seconds
 # If this value is set too low you might not let the program to die gracefully
 # and 'restart' will not work

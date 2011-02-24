@@ -1,0 +1,17 @@
+Changed the path of renderers to /etc/pms-linux/renderers.
+It is better to consider the files into thar directory as conffiles.
+--- a/net/pms/configuration/RendererConfiguration.java
++++ b/net/pms/configuration/RendererConfiguration.java
+@@ -40,11 +40,11 @@
+ 	public static void loadRendererConfigurations()  {
+ 		renderersConfs = new ArrayList<RendererConfiguration>();
+ 		try {
+ 			defaultConf = new RendererConfiguration();
+ 		} catch (ConfigurationException e) {}
+-		File renderersDir = new File("renderers");
++		File renderersDir = new File("/etc/pms-linux/renderers");
+ 		if (renderersDir.exists()) {
+ 			File confs [] = renderersDir.listFiles();
+ 			int rank = 1;
+ 			for(File f:confs) {
+ 				if (f.getName().endsWith(".conf")) {

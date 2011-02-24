@@ -1,13 +1,12 @@
-
-I changed default dir database from ./database to /var/lib/pms-linux/database-$(USER)
+Changed default dir database from ./database to /var/lib/pms-linux/database-$(USER)
 Actually, /usr/share/ should not be used to store file !
 /usr/share can be read-only  according to the "convention" of FHS, see:
 https://secure.wikimedia.org/wikipedia/en/wiki/Filesystem_Hierarchy_Standard
-
-===================================================================
 --- a/net/pms/dlna/DLNAMediaDatabase.java
 +++ b/net/pms/dlna/DLNAMediaDatabase.java
-@@ -50,7 +50,7 @@
+@@ -48,11 +48,11 @@
+ 	}
+ 	
  	private JdbcConnectionPool cp;
  	
  	public DLNAMediaDatabase(String name) {
@@ -16,3 +15,5 @@ https://secure.wikimedia.org/wikipedia/en/wiki/Filesystem_Hierarchy_Standard
  		File fileDir = new File(dir);
  		boolean defaultLocation = fileDir.mkdir() || fileDir.exists();
  		if (defaultLocation) {
+ 			// check if the database wasn't created during the installation run, with UAC activated.
+ 			String to_delete = "to_delete";

@@ -1,18 +1,32 @@
-
-By default, pms-linux search for tsMuxeR in linux/tsMuxeR dir
+By default, pms-linux search for tsMuxeR in linux/tsMuxeR dir 
 But knowning that that software is not free & is prebuilt, so i decided 
-to build it in another package & i put it in pool/non-free ...
+to build it in another package & i put it in pool/non-free ... 
 tsMuxeR should be available in the $PATH now after installing tsmuxer package.
-
-===================================================================
+If linux/tsMuxeR is present, then the program will use it.
 --- a/net/pms/configuration/LinuxDefaultPaths.java
 +++ b/net/pms/configuration/LinuxDefaultPaths.java
-@@ -29,7 +29,7 @@
+@@ -1,7 +1,9 @@
+ package net.pms.configuration;
+ 
++import java.io.File;
++
+ class LinuxDefaultPaths implements ProgramPaths {
+ 
+ 	@Override
+ 	public String getEac3toPath() {
+ 		return "eac3to";
+@@ -27,11 +29,13 @@
+ 		return "mplayer";
+ 	}
  
  	@Override
  	public String getTsmuxerPath() {
 -		return "linux/tsMuxeR";
++		if(new File("linux/tsMuxeR").isFile())
++			return "linux/tsMuxeR";
 +		return "tsMuxeR";
  	}
  
  	@Override
+ 	public String getVlcPath() {
+ 		return "vlc";

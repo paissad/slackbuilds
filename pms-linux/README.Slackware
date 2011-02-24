@@ -1,13 +1,13 @@
 ==================================================================================
 
-THE LAST KNOWN REVISION FOR WHICH THE PATCHES WILL WORK IS '413'
+THE LAST KNOWN REVISION FOR WHICH THE PATCHES WILL WORK IS '507'
 
 THEN, IF EVER YOU ENCOUNTER PROBLEMS DURING THE RUN OF THE SLACKBUILD, IT'S ALMOST
 SURE THAT IT COMES FROM AN INCOMPATIBLE REVISION CHANGES WITH THE GIVEN PATCHES.
 
 THUS, YOU SHOULD RUN THE SLACKBUILD LIKE THIS:
 
-SVN_REVISION=r413 ./pms-linux.SlackBuild
+SVN_REVISION=r507 ./pms-linux.SlackBuild
 
 Be aware of the 'r' before the revision number !
 ==================================================================================

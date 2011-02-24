@@ -1,79 +1,92 @@
-
-**  I made this diff file to change the name of the log file !
-the default name is debug.log -> the new name is debug-$USER.log
-** I also changed the path where log file is saved, i changed it to 
-/var/log/pms-linux/debug-$USER.log
+** This diff file modifiesthe name of the log file !
+The default filename is debug.log -> the new name is debug-$USER.log
+** Changed the path where log file is saved to /var/log/pms-linux/debug-$USER.log
 ** Now the default conf file is $HOME/.PMS.conf
 ** Possibility to specify -c or --conf option in order to choose the 
 configuration file to use.
-
-===================================================================
+** Changed default path of WEB.conf file to /etc/pms-linux/WEB.conf !
 --- a/net/pms/PMS.java
 +++ b/net/pms/PMS.java
-@@ -286,17 +286,21 @@
+@@ -370,20 +370,21 @@
+ 		
  		
  		registry = new WinUtils();
  					
-+		// Beginning of changes by the Debian/Ubuntu package maintainer.
-+		String username;
-+		username = System.getProperty("user.name");
  		File debug = null;
++		String debugFileName = "debug-" + System.getProperty("user.name") + ".log";
  		try {
 -			debug = new File("debug.log"); //$NON-NLS-1$
-+			debug = new File("/var/log/pms-linux/debug-"+username+".log"); //$NON-NLS-1$
++			debug = new File("/var/log/pms-linux/" + debugFileName); //$NON-NLS-1$
  			pw = new PrintWriter(new FileWriter(debug)); //$NON-NLS-1$
  		} catch (Throwable e) {
--			PMS.minimal("Error in accessing debug.log..."); //$NON-NLS-1$
-+			PMS.minimal("Error in accessing debug-"+username+".log..."); //$NON-NLS-1$
+-			minimal("Error accessing debug.log..."); //$NON-NLS-1$
++			minimal("Error accessing /var/log/pms-linux/" + debugFileName + "..."); //$NON-NLS-1$
  			pw = null;
  		} finally {
  			if (pw == null) {
--				PMS.minimal("Using temp folder for debug.log..."); //$NON-NLS-1$
-+				PMS.minimal("Using temp folder for debug-"+username+".log..."); //$NON-NLS-1$
- 				debug = new File(configuration.getTempFolder(), "debug.log"); //$NON-NLS-1$
-+		// End of modifications from Debian/Ubuntu package maintainer.
+ 				minimal("Using temp folder for debug.log..."); //$NON-NLS-1$
+-				debug = new File(configuration.getTempFolder(), "debug.log"); //$NON-NLS-1$
++				debug = new File(configuration.getTempFolder(), debugFileName); //$NON-NLS-1$
  				pw = new PrintWriter(new FileWriter(debug)); //$NON-NLS-1$
  			}
  		}
-@@ -1155,8 +1159,9 @@
+ 		
+ 		AutoUpdater autoUpdater = new AutoUpdater(UPDATE_SERVER_URL, VERSION);
+@@ -616,10 +617,12 @@
+ 
+ 		String strAppData = System.getenv("APPDATA");
+ 
+ 		if (Platform.isWindows() && strAppData != null) {
+ 			webConfPath = strAppData + PMSDIR + "WEB.conf";
++		} else if(Platform.isLinux() && new File("/etc/pms-linux/WEB.conf").isFile()) {
++			webConfPath = "/etc/pms-linux/WEB.conf";
+ 		} else {
+ 			webConfPath = "WEB.conf";
+ 		}
+ 
+ 		File webConf = new File(webConfPath); //$NON-NLS-1$
+@@ -1446,20 +1449,30 @@
  		}
  		return compatiblePlayers;
  	}
--	
-+
+ 	
  	public static void main(String args[]) throws IOException, ConfigurationException {
-+		String configuration_filename_forced = ""; //$NON-NLS-1$
++		String userSpecifiedConfFileName = null;
  		if (args.length > 0) {
  			for(int a=0;a<args.length;a++) {
  				if (args[a].equals("console")) //$NON-NLS-1$
-@@ -1167,6 +1172,18 @@
+ 					System.setProperty("console", "true"); //$NON-NLS-1$ //$NON-NLS-2$
+ 				else if (args[a].equals("nativelook")) //$NON-NLS-1$
+ 					System.setProperty("nativelook", "true"); //$NON-NLS-1$ //$NON-NLS-2$
+ 				else if (args[a].equals("scrollbars")) //$NON-NLS-1$
  					System.setProperty("scrollbars", "true"); //$NON-NLS-1$ //$NON-NLS-2$
  				else if (args[a].equals("noconsole")) //$NON-NLS-1$
  					System.setProperty("noconsole", "true"); //$NON-NLS-1$ //$NON-NLS-2$
 +				// Possibility to use a desired conf file.
-+				else if (args[a].equals("-c") || args[a].equals("--conf")){
-+					//PMS.minimal("Using an alternative configuration file ...");
++				else if (args[a].equals("-c") || args[a].equals("--conf")) {
 +					if ((a+1) != args.length && args[a+1] != null){
-+						configuration_filename_forced = args[a+1]; //$NON-NLS-1$
++						userSpecifiedConfFileName = new File (args[a+1]).getCanonicalPath();
 +						a++;
-+					}    
-+					else{
-+						//PMS.minimal("You specified '" + args[a] + "' option, but you did not set a valid configuration file !!");
++					} else {
 +						System.err.println("You specified '" + args[a] + "' option, but you did not set a valid configuration file !!");
 +					}
-+				} // End of conf file.
++				}
  			}
  		}
  		try {
-@@ -1178,7 +1195,10 @@
+ 			Toolkit.getDefaultToolkit();
+ 			if (GraphicsEnvironment.isHeadless() && System.getProperty("noconsole") == null) //$NON-NLS-1$
+@@ -1468,10 +1481,13 @@
+ 			System.err.println("Toolkit error: " + t.getMessage()); //$NON-NLS-1$
  			if (System.getProperty("noconsole") == null) //$NON-NLS-1$
  				System.setProperty("console", "true"); //$NON-NLS-1$ //$NON-NLS-2$
  		}
--		configuration = new PmsConfiguration();
-+		if (configuration_filename_forced.length() == 0)
-+			configuration = new PmsConfiguration();
-+		else
-+			configuration = new PmsConfiguration(configuration_filename_forced);
- 		PMS.get();
+ 
++		if(userSpecifiedConfFileName != null && !userSpecifiedConfFileName.isEmpty()) {
++			PmsConfiguration.setLinuxPath(userSpecifiedConfFileName);
++		}
+ 		configuration = new PmsConfiguration();
+ 		get();
  		try {
  			// let's allow us time to show up serious errors in the GUI before quitting
+ 			Thread.sleep(60000);

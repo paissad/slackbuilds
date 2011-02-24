@@ -153,13 +153,14 @@ patch -p1 <$CWD/patches/PMS.java.patch
 patch -p1 <$CWD/patches/TempFolder.java.patch
 patch -p1 <$CWD/patches/PmsConfiguration.java.patch
 patch -p1 <$CWD/patches/DLNAMediaDatabase.java.patch
-#patch -p1 <$CWD/patches/LinuxDefaultPaths.java.patch
+patch -p1 <$CWD/patches/RendererConfiguration.java.patch
+patch -p1 <$CWD/patches/LinuxDefaultPaths.java.patch
 
 cd $TMP/$PRGNAM-$VERSION
 ant || shellout "Running ant failed."
 ( cd $TMP/$PRGNAM-$VERSION/dist; tar xf *tgz; )
 
-mkdir -p $PKG/etc/{rc.d,logrotate.d}
+mkdir -p $PKG/etc/{rc.d,logrotate.d,pms-linux}
 mkdir -p $PKG/usr/{bin,man/man1}
 mkdir -p $PKG/usr/share/{$PRGNAM,pixmaps,applications}
 mkdir -p $PKG/var/{lib,log}/pms-linux
@@ -167,7 +168,7 @@ chmod -R 1777 $PKG/var/{lib,log}/pms-linux || exit 1
 
 
 cd $TMP/$PRGNAM-$VERSION/dist/$PRGNAM-*
-cp -a renderers/ \
+cp -a \
 resources \
 plugins/ \
 linux/ \
@@ -175,8 +176,17 @@ dist-archive/ \
 pms.jar \
 $PKG/usr/share/$PRGNAM \
 || shellout "Copying files to /usr/share/$PRGNAM"
-cat $TMP/$PRGNAM-$VERSION/PMS.conf > $PKG/etc/PMS.conf.new || exit 1
-cat $TMP/$PRGNAM-$VERSION/WEB.conf > $PKG/etc/WEB.conf.new || exit 1
+
+pushd $TMP/$PRGNAM-$VERSION/renderers/
+mkdir $PKG/etc/pms-linux/renderers
+for i in *; do
+	mkdir -p $(dirname $i)
+	cp -a $i $PKG/etc/pms-linux/renderers/$i.new || exit 1
+done
+popd
+
+cat $TMP/$PRGNAM-$VERSION/PMS.conf > $PKG/etc/pms-linux/PMS.conf.new || exit 1
+cat $TMP/$PRGNAM-$VERSION/WEB.conf > $PKG/etc/pms-linux/WEB.conf.new || exit 1
 
 chmod 0755 $PKG/usr/share/$PRGNAM/linux/tsMuxeR || exit 1
 
@@ -223,6 +233,13 @@ EODESC
 if [ -r $CWD/doinst.sh ]; then
    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
+
+pushd $TMP/$PRGNAM-$VERSION/renderers
+for i in *; do
+	echo "config etc/pms-linux/renderers/$i.new" >> $PKG/install/doinst.sh
+done
+popd
+
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION
