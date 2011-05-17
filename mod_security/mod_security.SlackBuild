@@ -29,7 +29,7 @@ DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-mod_security}
 SRCNAM=${SRCNAM:-modsecurity-apache}
-VERSION=${VERSION:-2.5.12}
+VERSION=${VERSION:-2.5.13}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
@@ -42,9 +42,10 @@ TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
-DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE \
-CHANGELOG ChangeLog HACKING INSTALL MAINTAINERS NEWS ReadMe README \
-THANKS TODO RELEASE UPGRADING FAQ HELP"}
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT* AUTHORS COPYING* CONFIG* LICENSE* \
+CHANGES* CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS FILES NEWS* \
+ReadMe* README* THANKS* TODO* Todo* RELEASE* UPGRADING* FAQ* Faq* HELP* BUGS* \
+CONTRIBUTORS* PKG-INFO*"}
 
 set -e
 
@@ -116,15 +117,15 @@ cd apache2 || shellout "cd to apache2 dir"
 CFLAGS="$SLACKCFLAGS" \
 CXXFLAGS="$SLACKCFLAGS" \
 ./configure \
---prefix=$PREFIX \
---libdir=$PREFIX/lib${LIBDIRSUFFIX} \
---sysconfdir=/etc \
---localstatedir=/var \
---mandir=$PREFIX/man \
---docdir=$PREFIX/doc/$PRGNAM-$VERSION \
---build=$ARCH-slackware-linux \
-|| shellout "configure of $PRGNAM-$VERSION failed"
-conclude "configure finished ..."
+    --prefix=$PREFIX \
+    --libdir=$PREFIX/lib${LIBDIRSUFFIX} \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --mandir=$PREFIX/man \
+    --docdir=$PREFIX/doc/$PRGNAM-$VERSION \
+    --build=$ARCH-slackware-linux \
+    || shellout "configure of $PRGNAM-$VERSION failed"
+conclude "configure finished sucessfully ..."
 
 introduce "make & make mlogc"
 make -j${NUMJOBS} || shellout "make failed." 
@@ -152,26 +153,19 @@ ${PKG}/etc/rules-updater-example.conf.new
 cp -a $PKG/etc/{rules-updater-example.conf.new,rules-updater.conf.new}
    
 mkdir -p ${PKG}/etc/httpd/modsecurity.d
-install -m 0644 $TMP/$PRGNAM-$VERSION/rules/*.conf \
-${PKG}/etc/httpd/modsecurity.d/ \
+cp -a $TMP/$PRGNAM-$VERSION/rules/* ${PKG}/etc/httpd/modsecurity.d/ \
 || shellout "Copying rules files failed"
 
-mkdir -p $PKG/etc/httpd/modsecurity.d/
-cp -a $TMP/$PRGNAM-$VERSION/rules/base_rules ${PKG}/etc/httpd/modsecurity.d/ \
-|| shellout "Copying base_rules files"
-cp -a $TMP/$PRGNAM-$VERSION/rules/optional_rules ${PKG}/etc/httpd/modsecurity.d/ \
-|| shellout "Copying optional_rules files"
-   
-cat > ${PKG}/etc/httpd/modsecurity.d/modsecurity_localrules.conf.new <<'EOF'
+cat > ${PKG}/etc/httpd/modsecurity.d/modsecurity_localrules.conf.new <<_EOF_
 # Drop your local rules in here.
-EOF
+_EOF_
  
-for conf in $(find ${PKG}/etc/httpd/modsecurity.d/ -type f -name *.conf) ;do
-    mv ${conf} ${conf}.new
+for conf in $(find "${PKG}/etc/httpd/modsecurity.d/" -type f -name "*.conf") ; do
+    mv "$conf" "$conf.new"
 done
 
 mkdir -p ${PKG}/etc/httpd/extra
-cat > ${PKG}/etc/httpd/extra/mod_security.conf.new <<'EOF'
+cat > ${PKG}/etc/httpd/extra/mod_security.conf.new <<_EOF_
 # Example configuration file for the mod_security Apache module
 
 LoadModule security2_module modules/mod_security2.so
@@ -185,8 +179,9 @@ Include modsecurity.d/*.conf
 Include modsecurity.d/base_rules/*.conf
 Include modsecurity.d/modsecurity_localrules.conf
 </IfModule>
-EOF
+_EOF_
 
+# Strip binaries
 ( cd $PKG || exit 1
   find . -type f | xargs file | grep -e "executable" -e "shared object" | \
     grep ELF | cut -f 1 -d : | xargs strip --strip-unneeded  2> /dev/null
@@ -223,10 +218,11 @@ EODESC
 if [ -r $CWD/doinst.sh ]; then
    cat $CWD/doinst.sh > $PKG/install/doinst.sh
 fi
-#find $PKG/etc/ -type f -name *.new \
-#-exec echo "config {} >> $PKG/install/doinst.sh" \;
-#find $PKG/etc/httpd/modsecurity.d/ -type f -name *.new \
-#-exec echo "config {} >> $PKG/install/doinst.sh" \;
+
+# add conf files to the doinst.sh file.
+cd $PKG
+find etc -type f -name "*.new" \
+    -exec echo config '{}' >> $PKG/install/doinst.sh \;
 
 # Install the documentation
 cd $TMP/$PRGNAM-$VERSION
@@ -251,13 +247,10 @@ find $PKG/$PREFIX/doc -type f -exec chmod -c 0644 {} \;
 mkdir -p $PKG/install
 test -r $CWD/slack-desc && \
 cat $CWD/slack-desc > $PKG/install/slack-desc
-# -- finished install docs --
 
-set +e
 # We change the default values in the slack-desc 
 sed -i "s|_PACKAGER|${PACKAGER}|g; s|_BUILD_DATE|${DATE}|g" \
 ${PKG}/install/slack-desc
-set -e
 
 cd $PKG 
 /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE \

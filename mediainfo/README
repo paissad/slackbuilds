@@ -1,0 +1,7 @@
+This SlackBuild will download and build automatically mediainfo and 
+mediainfo-gui for you.
+Just do something like 
+./mediainfo.SlackBuild or fakeroot ./mediainfo.SlackBuild
+
+You only have to install 'p7zip' before (which is available at http://slackbuilds.org)
+Enjoy !

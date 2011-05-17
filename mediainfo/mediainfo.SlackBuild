@@ -20,7 +20,7 @@
 #  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Requirements :p7zip
+# Requirements : p7zip
 # Suggests:
 
 time_start_script=$(date +%s)
@@ -31,7 +31,7 @@ DATE=$(LC_ALL=C date +%d-%b-%Y)
 
 PRGNAM=${PRGNAM:-mediainfo}
 SRCNAM=${SRCNAM:-$PRGNAM}
-VERSION=${VERSION:-0.7.30}
+VERSION=${VERSION:-0.7.38}
 ARCH=${ARCH:-$(uname -m)}
 BUILD=${BUILD:-1}
 CWD=${CWD:-`pwd`}
@@ -45,9 +45,9 @@ TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX=${PREFIX:-"/usr"}
 NUMJOBS=${NUMJOBS:-}
-DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
-CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
-ReadMe* README* THANKS TODO Todo RELEASE* UPGRADING* FAQ Faq HELP* BUGS*"}
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT* AUTHORS COPYING* CONFIG* LICENSE* \
+CHANGES* CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS FILES NEWS* \
+ReadMe* README* THANKS* TODO* Todo* RELEASE* UPGRADING* FAQ* Faq* HELP* BUGS*"}
 
 set -e
 
@@ -109,14 +109,18 @@ mv -v ${SRCNAM}-${VERSION} $PRGNAM-$VERSION
 cd $TMP/$PRGNAM-$VERSION
 
 chown -R root:root .
-chmod -R u+w,go+r-w,a-s .
+find . \
+\( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+-exec chmod 755 {} \; -o \
+\( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o \
+-perm 400 \) -exec chmod 644 {} \;
 
 if [ "$ARCH" = "i486" ]; then
-  SLACKCFLAGS="-O2 -march=i486 -mtune=i686"
+  SLKCFLAGS="-O2 -march=i486 -mtune=i686"
 elif [ "$ARCH" = "i686" ]; then
-  SLACKCFLAGS="-O2 -march=i686 -mtune=i686"
+  SLKCFLAGS="-O2 -march=i686 -mtune=i686"
 elif [ "$ARCH" = "x86_64" ]; then
-  SLACKCFLAGS="-O2 -fPIC"
+  SLKCFLAGS="-O2 -fPIC"
   LIBDIRSUFFIX="64"
   NUMJOBS=2
 fi
@@ -127,8 +131,8 @@ fi
 # Let's build libzen (no install),required for building the following stuffs
 cd $TMP/$PRGNAM-$VERSION/ZenLib/Project/GNU/Library
 sh autogen || shellout "autogen for libzen failed"
-CFLAGS="$SLACKCFLAGS" \
-CXXFLAGS="$SLACKCFLAGS" \
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
 ./configure \
 --enable-shared \
 --prefix=$PREFIX \
@@ -144,8 +148,8 @@ make DESTDIR=$PKG install || shellout "make install for libzen failed"
 # Let's build libmediainfo
 cd $TMP/$PRGNAM-$VERSION/MediaInfoLib/Project/GNU/Library
 sh autogen || shellout "autogen for mediainfolib failed"
-CFLAGS="$SLACKCFLAGS" \
-CXXFLAGS="$SLACKCFLAGS" \
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
 ./configure \
 --enable-shared \
 --enable-visibility \
@@ -163,8 +167,8 @@ make DESTDIR=$PKG install || shellout "make install for mediainfolib failed"
 cd $TMP/$PRGNAM-$VERSION/MediaInfo/Project/GNU/CLI
 sh autogen || shellout "autogen for mediainfo-CLI failed"
 
-CFLAGS="$SLACKCFLAGS" \
-CXXFLAGS="$SLACKCFLAGS" \
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
 ./configure \
 --prefix=$PREFIX \
 --libdir=$PREFIX/lib${LIBDIRSUFFIX} \
@@ -182,8 +186,8 @@ make DESTDIR=$PKG install || shellout "make install for mediainfo_CLI failed"
 cd $TMP/$PRGNAM-$VERSION/MediaInfo/Project/GNU/GUI
 sh autogen || shellout "autogen for mediainfo-GUI failed"
 
-CFLAGS="$SLACKCFLAGS" \
-CXXFLAGS="$SLACKCFLAGS" \
+CFLAGS="$SLKCFLAGS" \
+CXXFLAGS="$SLKCFLAGS" \
 ./configure \
 --enable-shared \
 --prefix=$PREFIX \

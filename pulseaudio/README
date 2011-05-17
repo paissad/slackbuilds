@@ -1,0 +1,2 @@
+Just run 'fakeroot pulseaudio.SlackBuild', the package will be automatically retrieved from
+the git repository & then built automatically.

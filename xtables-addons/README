@@ -1,0 +1,8 @@
+Just run 'fakeroot xtables-addons.SlackBuild' in order to download & build the slackware package.
+This will build the package for the current running kernel $(uname -r)
+But if you want to build the package for another kernel, just set the local env variable KERNEL,
+here is an example:
+KERNEL=2.6.36.1 fakeroot xtables-addons.SlackBuild
+
+Enjoy,
+

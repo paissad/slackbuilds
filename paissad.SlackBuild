@@ -45,9 +45,10 @@ TAG=${TAG:-_paissad}
 PKGTYPE=${PKGTYPE:-tgz}
 PREFIX="${PREFIX:-/usr}"
 NUMJOBS=${NUMJOBS:-}
-DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT-NLS AUTHORS COPYING LICENSE* \
-CHANGES CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS NEWS \
-ReadMe* README* THANKS TODO Todo RELEASE* UPGRADING* FAQ Faq HELP* BUGS*"}
+DOCS=${DOCS:-"CREDITS WHISHLIST ABOUT* AUTHORS COPYING* CONFIG* LICENSE* \
+CHANGES* CHANGELOG* ChangeLog* HACKING INSTALL* MAINTAINERS FILES NEWS* \
+ReadMe* README* THANKS* TODO* Todo* RELEASE* UPGRADING* FAQ* Faq* HELP* BUGS* \
+CONTRIBUTORS* PKG-INFO*"}
 
 set -e
 trap shellout EXIT
@@ -155,9 +156,10 @@ introduce "$process"
 make DESTDIR=$PKG install
 conclude "make install finished successfully"
 
-# strip binaries
+# strip binaries#{{{
 find $PKG | xargs file | grep -e "executable" -e "shared object" | grep ELF \
 | cut -f 1 -d : | xargs strip --strip-unneeded 2> /dev/null || true
+##}}}
 
 # Installation of slack-desc#{{{
 mkdir -p $PKG/install 

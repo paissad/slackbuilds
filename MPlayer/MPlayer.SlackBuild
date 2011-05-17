@@ -167,7 +167,6 @@ introduce "Running configure"
   --enable-libcdio \
   --enable-theora \
   --enable-faad \
-  --enable-faad-fixed \
   --enable-xmms \
   --enable-gl \
   --enable-dga2 \
